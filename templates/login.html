@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopkeeper Login - Dead Stock Intelligence</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            background: linear-gradient(120deg, #f4f0ff 0%, #e0e7ff 100%);
+            min-height: 100vh;
+            font-family: 'Inter', Arial, sans-serif;
+        }
+        .auth-container {
+            display: flex;
+            max-width: 900px;
+            margin: 60px auto;
+            background: rgba(255,255,255,0.98);
+            border-radius: 18px;
+            box-shadow: 0 12px 36px rgba(143,95,255,0.13), 0 1.5px 8px rgba(52,152,219,0.07);
+            overflow: hidden;
+            min-height: 520px;
+        }
+        .welcome-section {
+            flex: 1.1;
+            background: linear-gradient(120deg, #8f5fff 0%, #4f2cc9 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 36px;
+            min-width: 260px;
+        }
+        .welcome-section h2 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 18px;
+            margin-top: 0;
+            letter-spacing: 0.5px;
+        }
+        .welcome-section p {
+            font-size: 1.18rem;
+            font-weight: 400;
+            margin-bottom: 0;
+            line-height: 1.5;
+            text-align: center;
+        }
+        .form-section {
+            flex: 1.2;
+            padding: 38px 32px 32px 32px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .auth-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .auth-header h1 {
+            color: #4f2cc9;
+            margin-bottom: 10px;
+            font-size: 2.1rem;
+            font-weight: 700;
+        }
+        .auth-header p {
+            color: #7f8c8d;
+            font-size: 1.08rem;
+        }
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 32px;
+            border-bottom: 2px solid #ecf0f1;
+            background: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 15px 0;
+            text-align: center;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: #7f8c8d;
+            background: none;
+        }
+        .auth-tab.active {
+            color: #4f2cc9;
+            border-bottom-color: #8f5fff;
+            background: #f4f0ff;
+        }
+        .auth-form {
+            display: none;
+        }
+        .auth-form.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 22px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4f2cc9;
+        }
+        .required {
+            color: #FF2C6C;
+            font-weight: bold;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 13px 16px;
+            border: 2px solid #e0e7ff;
+            border-radius: 9px;
+            font-size: 16px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            box-sizing: border-box;
+            background: #f8f9fa;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #8f5fff;
+            box-shadow: 0 0 0 2px #e0e7ff;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(90deg, #8f5fff 0%, #4f2cc9 100%);
+            color: white;
+            border: none;
+            border-radius: 9px;
+            font-size: 17px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 8px rgba(143,95,255,0.10);
+        }
+        .submit-btn:hover {
+            background: linear-gradient(90deg, #4f2cc9 0%, #8f5fff 100%);
+            box-shadow: 0 5px 15px rgba(143,95,255,0.18);
+            transform: translateY(-2px);
+        }
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .demo-credentials {
+            background: #f4f0ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border-left: 4px solid #8f5fff;
+        }
+        .demo-credentials h4 {
+            margin: 0 0 10px 0;
+            color: #4f2cc9;
+        }
+        .demo-credentials p {
+            margin: 5px 0;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        .back-link {
+            text-align: center;
+            margin-top: 22px;
+        }
+        .back-link a {
+            color: #8f5fff;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+        .back-link a:hover {
+            text-decoration: underline;
+            color: #4f2cc9;
+        }
+        .error-message {
+            background: #e74c3c;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+            font-size: 15px;
+            text-align: center;
+        }
+        .success-message {
+            background: #27ae60;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+            font-size: 15px;
+            text-align: center;
+        }
+        .not-registered-link {
+            display: block;
+            margin-top: 10px;
+            text-align: center;
+            color: #4f2cc9;
+            font-size: 15px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .not-registered-link:hover {
+            color: #8f5fff;
+        }
+        @media (max-width: 900px) {
+            .auth-container {
+                flex-direction: column;
+                min-height: unset;
+            }
+            .welcome-section {
+                min-height: 180px;
+                padding: 32px 12px 18px 12px;
+            }
+            .form-section {
+                padding: 32px 12px 24px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="welcome-section">
+            <h2>Welcome to Shopkeeper's Portal</h2>
+            <p>for Dead Stock Management</p>
+        </div>
+        <div class="form-section">
+            <div class="auth-header">
+                <h1>🛍️ Shopkeeper Portal</h1>
+                <p>Track your products and sales events</p>
+            </div>
+            <div class="auth-tabs">
+                <div class="auth-tab active" onclick="switchTab('login')">Login</div>
+                <div class="auth-tab" onclick="switchTab('register')">Register</div>
+            </div>
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form active">
+                <div class="error-message" id="loginError"></div>
+                <div class="form-group">
+                    <label for="loginUserId">User ID <span class="required">*</span></label>
+                    <input type="text" id="loginUserId" name="user_id" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password <span class="required">*</span></label>
+                    <input type="password" id="loginPassword" name="password" required>
+                </div>
+                <button type="submit" class="submit-btn" id="loginBtn">
+                    <span>Login</span>
+                </button>
+                <span class="not-registered-link" id="notRegisteredLink" style="display:none;">Not registered? Please register.</span>
+                <div class="demo-credentials">
+                    <h4>Demo Credentials</h4>
+                    <p><strong>User ID:</strong> demo_shopkeeper_001</p>
+                    <p><strong>Password:</strong> demo123</p>
+                </div>
+            </form>
+            <!-- Registration Form -->
+            <form id="registerForm" class="auth-form">
+                <div class="error-message" id="registerError"></div>
+                <div class="success-message" id="registerSuccess"></div>
+                <div class="form-group">
+                    <label for="registerUserId">User ID <span class="required">*</span></label>
+                    <input type="text" id="registerUserId" name="user_id" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerShopName">Shop Name <span class="required">*</span></label>
+                    <input type="text" id="registerShopName" name="shop_name" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password <span class="required">*</span></label>
+                    <input type="password" id="registerPassword" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email <span class="required">*</span></label>
+                    <input type="email" id="registerEmail" name="email" required pattern="[a-zA-Z0-9._%+-]+@gmail\.com$" title="Please enter a valid Gmail address">
+                </div>
+                <div class="form-group">
+                    <label for="registerPhone">Phone <span class="required">*</span></label>
+                    <input type="tel" id="registerPhone" name="phone" required pattern="[0-9]+" title="Please enter numbers only" minlength="10" maxlength="15">
+                </div>
+                <div class="form-group">
+                    <label for="registerLocation">Location <span class="required">*</span></label>
+                    <input type="text" id="registerLocation" name="location" required>
+                </div>
+                <button type="submit" class="submit-btn" id="registerBtn">
+                    <span>Register</span>
+                </button>
+            </form>
+            <div class="back-link">
+                <a href="/">← Back to Main Dashboard</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+</body>
+</html> 

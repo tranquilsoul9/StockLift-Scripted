@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photogenix AI - Intelligent Product Photography Assistant</title>
+    <link rel="stylesheet" href="/static/css/stylephoto.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link  href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+</head>
+<body>
+    <section class="dark-hero">
+        <div class="dark-hero-content">
+            <h1><span>Expert product photography</span><br><span class="blue">for your brand</span></h1>
+            <div class="dark-hero-sub">
+                <span>✔️ Studio-quality results</span>
+                <span>✔️ Fast AI processing</span>
+                <span>✔️ No design skills needed</span>
+            </div>
+        </div>
+        <div class="carousel-container">
+            <div class="carousel-track">
+                <img src="/static/img/056e8cd5-15d4-4e1c-b844-97f5384eff5c.jpeg" alt="Sample 1" class="carousel-img">
+                <img src="/static/img/0e62ffaf-c837-4446-90d0-b0815a91db0f.jpeg" alt="Sample 2" class="carousel-img">
+                <img src="/static/img/Creative Food & Product Photography by Lauren Camposano.jpeg" alt="Sample 3" class="carousel-img">
+                <img src="/static/img/EMERALD CGI VISUALIZATION - Mohamed Farouk.jpeg" alt="Sample 4" class="carousel-img">
+                <img src="/static/img/Mai Soli - Luxury Handbag Photography - Garima Manocha.jpeg" alt="Sample 5" class="carousel-img">
+                <img src="/static/img/Midjourney V5 prompt cosmetics product rendering stock background advertising AI art.jpeg" alt="Sample 6" class="carousel-img">
+                <img src="/static/img/professional_product.png" alt="Sample 7" class="carousel-img">
+                
+            </div>
+        </div>
+        <div class="dark-hero-caption">Perfect for <span id="typewriter-highlight"></span></div>
+    </section>
+    <header class="hero">
+        <h1>Professional Product Photos <span class="highlight">in Minutes</span></h1>
+        <p class="subtitle">Transform your product images with AI-powered enhancement tools.<br>Perfect for e-commerce sellers, influencers, and digital brands.</p>
+        <div class="cta-buttons">
+            <button class="cta" id="bgRemoveBtn">Background Removal</button>
+            <button class="cta" id="autoEnhanceBtn">Auto Enhancement</button>
+            <button class="cta" id="creativeContentBtn">Creative Content</button>
+        </div>
+    </header>
+    <section class="upload-section">
+        <div class="upload-box">
+            <div class="upload-icon">📸</div>
+            <h2>Make Your Product Photo Professional</h2>
+            <p>Upload your product image and get a studio-quality, marketplace-ready photo in seconds.</p>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <input type="file" id="imageInput" name="images" accept="image/*" multiple hidden>
+                <button type="button" id="chooseImage" class="cta">Choose Image</button>
+            </form>
+            <div id="mainSampleImagesContainer" style="display:none;margin-top:1.2rem;">
+                <h4 style="margin-bottom:0.7rem;text-align:center;">Try with a sample image:</h4>
+                <div id="mainSampleImages" style="display:flex;gap:1.1rem;flex-wrap:wrap;justify-content:center;margin-bottom:1.2rem;"></div>
+                <div style="display:flex;gap:1.2rem;justify-content:center;flex-wrap:wrap;">
+                    <button type="submit" id="makeProfessional" class="cta" style="display:none;">Make Professional</button>
+                    <button type="button" id="uploadImageBtn" class="cta" style="background:linear-gradient(90deg,#fff 0%,#8f5fff 100%);color:#8f5fff;border:2px solid #8f5fff;">Upload Your Image</button>
+                </div>
+            </div>
+            <div id="preview"></div>
+            <div id="makeProfessionalLoader" style="display:none;justify-content:center;align-items:center;margin-top:1.2rem;">
+                <div class="spinner"></div>
+                <div style="margin-left:10px;color:#8f5fff;font-weight:600;">Processing...</div>
+            </div>
+            <div id="autoEnhanceLoader" style="display:none;justify-content:center;align-items:center;margin-top:1.2rem;">
+                <div class="spinner"></div>
+                <div style="margin-left:10px;color:#8f5fff;font-weight:600;">Enhancing...</div>
+            </div>
+        </div>
+        <div class="preview-card" id="resultCard" style="display:none;">
+            <h3>Marketplace Preview</h3>
+            <div class="marketplace-frame">
+                <img id="processedImg" src="" alt="Processed Product" />
+            </div>
+            <a id="downloadBtn" href="#" download style="display:none;">Download Professional Image</a>
+        </div>
+        <div class="preview-card" id="enhanceResultCard" style="display:none;">
+            <h3>Enhanced Preview</h3>
+            <div class="marketplace-frame">
+                <img id="enhancedImg" src="" alt="Enhanced Product" />
+            </div>
+            <a id="enhanceDownloadBtn" href="#" download style="display:none;">Download Enhanced Image</a>
+        </div>
+    </section>
+    <section class="features">
+        <h2>Enhance your Images with AI Tools</h2>
+        <div class="feature-grid">
+            <div class="feature-card" id="bgRemoveCard" style="cursor:pointer;">
+                <div class="feature-img">🖼️</div>
+                <h3>Background Remover</h3>
+                <p>Remove backgrounds instantly for clean, professional product shots.</p>
+            </div>
+            <div class="feature-card" id="bgReplaceCard" style="cursor:pointer;">
+                <div class="feature-img">🎨</div>
+                <h3>Background Replacement</h3>
+                <p>Choose from studio, lifestyle, or custom backgrounds. AI matches lighting and shadows.</p>
+            </div>
+            <div class="feature-card" id="autoEnhanceCard" style="cursor:pointer;">
+                <div class="feature-img">✨</div>
+                <h3>Auto Enhancement</h3>
+                <p>Smartly adjust brightness, contrast, and color for stunning results.</p>
+            </div>
+            <!-- <div class="feature-card">
+                <div class="feature-img">🌗</div>
+                <h3>Shadow Generation</h3>
+                <p>Add realistic drop or ground shadows for depth and professionalism.</p>
+            </div> -->
+            <!-- <div class="feature-card">
+                <div class="feature-img">💎</div>
+                <h3>Reflection Effects</h3>
+                <p>Generate soft surface reflections for luxury product displays.</p>
+            </div> -->
+            <div class="feature-card" id="cropResizeCard" style="cursor:pointer;">
+                <div class="feature-img">📐</div>
+                <h3>Cropping & Resizing</h3>
+                <p>Auto-crop and resize for Amazon, Flipkart, Shopify, Instagram, and more.</p>
+            </div>
+            <!-- <div class="feature-card">
+                <div class="feature-img">🖌️</div>
+                <h3>Style Templates</h3>
+                <p>Apply studio, flat lay, lifestyle, or social media ad templates.</p>
+            </div> -->
+            <div class="feature-card" id="creativeContentCard" style="cursor:pointer;">
+                <div class="feature-img">📝</div>
+                <h3>Creative Content</h3>
+                <p>Generate marketplace-ready post content, including title, description, and attributes.</p>
+            </div>
+        </div>
+    </section>
+    <footer>
+        <p>© 2024 Photogenix AI. Empowering your product visuals.</p>
+    </footer>
+    <script src="/static/js/main.js"></script>
+    <!-- Background Removal Modal -->
+    <style>
+    /* Enhanced modal form styling */
+    #bgRemoveModal .modal-content {
+        max-width: 520px;
+        width: 90%;
+        padding: 2.2rem 2.2rem;
+        background: #fff;
+        border-radius: 1.2rem;
+        box-shadow: 0 8px 32px rgba(143,95,255,0.13);
+        position: relative;
+    }
+    #bgRemoveForm {
+        margin-bottom: 1.2rem;
+        min-height: 180px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.2rem;
+        width: 100%;
+    }
+    #bgRemoveForm .button-row {
+        display: flex;
+        flex-direction: row;
+        gap: 1.2rem;
+        width: 100%;
+        justify-content: center;
+    }
+    #chooseBgRemove, #bgRemoveForm button[type="submit"] {
+        padding: 0.7rem 1.6rem;
+        border-radius: 0.7rem;
+        border: none;
+        font-size: 1.08rem;
+        font-weight: 600;
+        background: linear-gradient(90deg,#8f5fff 0%,#4f2cc9 100%);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(143,95,255,0.10);
+        cursor: pointer;
+        transition: background 0.2s, box-shadow 0.2s;
+        outline: none;
+        min-width: 150px;
+        max-width: 220px;
+    }
+    #chooseBgRemove:hover, #bgRemoveForm button[type="submit"]:hover {
+        background: linear-gradient(90deg,#4f2cc9 0%,#8f5fff 100%);
+        box-shadow: 0 4px 16px rgba(143,95,255,0.18);
+    }
+    </style>
+    <div id="bgRemoveModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" id="closeBgRemove">&times;</span>
+            <h2>Background Removal</h2>
+            <form id="bgRemoveForm" enctype="multipart/form-data">
+                <input type="file" id="bgRemoveInput" name="image" accept="image/*" hidden>
+                <div class="button-row">
+                <button type="button" id="chooseBgRemove">Choose Image</button>
+                <button type="submit">Remove Background</button>
+                </div>
+            </form>
+            <div id="suggestedImagesContainer" style="margin-top:1.2rem;">
+                <h4 style="margin-bottom:0.7rem;">Or try with a sample image:</h4>
+                <div id="suggestedImages" style="display:flex;gap:1.1rem;flex-wrap:wrap;justify-content:center;"></div>
+            </div>
+            <div id="bgRemovePreview"></div>
+            <a id="bgRemoveDownload" href="#" download style="display:none;">Download PNG</a>
+        </div>
+    </div>
+    <script>
+    // Suggested images from static/img/
+    const suggestedImageNames = [
+        '056e8cd5-15d4-4e1c-b844-97f5384eff5c.jpeg',
+        '0e62ffaf-c837-4446-90d0-b0815a91db0f.jpeg',
+        'Creative Food & Product Photography by Lauren Camposano.jpeg',
+        'EMERALD CGI VISUALIZATION - Mohamed Farouk.jpeg',
+        'Mai Soli - Luxury Handbag Photography - Garima Manocha.jpeg',
+        'Midjourney V5 prompt cosmetics product rendering stock background advertising AI art.jpeg',
+        'professional_product.png'
+    ];
+    const suggestedImagesDiv = document.getElementById('suggestedImages');
+    if (suggestedImagesDiv) {
+        suggestedImageNames.forEach(name => {
+            const img = document.createElement('img');
+            img.src = `/static/img/${encodeURIComponent(name)}`;
+            img.alt = 'Suggested';
+            img.style = 'width:72px;height:72px;object-fit:cover;border-radius:0.6rem;box-shadow:0 2px 8px rgba(143,95,255,0.10);cursor:pointer;border:2px solid #eee;transition:box-shadow 0.2s,border 0.2s;';
+            img.addEventListener('mouseenter',()=>{img.style.border='2px solid #8f5fff';img.style.boxShadow='0 2px 12px rgba(143,95,255,0.18)';});
+            img.addEventListener('mouseleave',()=>{img.style.border='2px solid #eee';img.style.boxShadow='0 2px 8px rgba(143,95,255,0.10)';});
+            img.addEventListener('click', async () => {
+                // Fetch the image as blob, set as file input
+                const response = await fetch(img.src);
+                const blob = await response.blob();
+                const file = new File([blob], name, {type: blob.type});
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                document.getElementById('bgRemoveInput').files = dataTransfer.files;
+                // Optionally show preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const previewDiv = document.getElementById('bgRemovePreview');
+                    previewDiv.innerHTML = `<img src='${e.target.result}' style='max-width:180px;max-height:180px;border-radius:0.6rem;margin-top:0.7rem;'/>`;
+                };
+                reader.readAsDataURL(file);
+            });
+            suggestedImagesDiv.appendChild(img);
+        });
+    }
+    </script>
+    <!-- Auto Enhancement Modal (Refactored IDs) -->
+    <div id="autoEnhanceModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" id="closeAutoEnhanceModal">&times;</span>
+            <h2>Auto Enhancement</h2>
+            <form id="autoEnhanceModalForm" enctype="multipart/form-data">
+                <input type="file" id="autoEnhanceModalInput" name="image" accept="image/*" hidden>
+                <div class="button-row">
+                    <button type="button" id="chooseAutoEnhanceModal" class="modal-btn">Choose Image</button>
+                    <button type="submit" class="modal-btn">Enhance</button>
+                </div>
+            </form>
+            <div id="suggestedEnhanceModalImagesContainer" style="margin-top:1.2rem;">
+                <h4 style="margin-bottom:0.7rem;">Or try with a sample image:</h4>
+                <div id="suggestedEnhanceModalImages" style="display:flex;gap:1.1rem;flex-wrap:wrap;justify-content:center;"></div>
+            </div>
+            <div id="autoEnhanceModalPreview" style="text-align:center;"></div>
+            <a id="autoEnhanceModalDownload" href="#" download style="display:none;margin-top:1.1rem;" class="modal-btn">Download Enhanced Image</a>
+        </div>
+    </div>
+    <!-- Creative Content Modal (Refactored IDs) -->
+    <div id="creativeContentModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" id="closeCreativeContentModal">&times;</span>
+            <h2>Marketplace Post Generator</h2>
+            <form id="creativeContentModalForm" enctype="multipart/form-data">
+                <input type="file" id="creativeContentModalInput" name="image" accept="image/*" hidden>
+                <div class="button-row">
+                    <button type="button" id="chooseCreativeContentModal" class="modal-btn">Choose Image</button>
+                    <button type="submit" class="modal-btn">Generate Content</button>
+                </div>
+            </form>
+            <div id="suggestedCreativeModalImagesContainer" style="margin-top:1.2rem;">
+                <h4 style="margin-bottom:0.7rem;">Or try with a sample image:</h4>
+                <div id="suggestedCreativeModalImages" style="display:flex;gap:1.1rem;flex-wrap:wrap;justify-content:center;"></div>
+            </div>
+            <div id="creativeContentModalLoader" style="display:none;justify-content:center;align-items:center;margin-top:1.2rem;">
+                <div class="spinner"></div>
+                <div style="margin-left:10px;color:#8f5fff;font-weight:600;">Generating...</div>
+            </div>
+            <div id="creativeContentModalResult" style="display:none;text-align:left;margin-top:1.2rem;">
+                <h3 id="creativeContentModalHeading"></h3>
+                <p id="creativeContentModalDescription"></p>
+                <div id="creativeContentModalAttributes" style="margin-top:1rem;"></div>
+            </div>
+        </div>
+    </div>
+    <style>
+    .selected-sample-img {
+        border: 3px solid #8f5fff !important;
+        box-shadow: 0 2px 16px rgba(143,95,255,0.18) !important;
+    }
+    </style>
+    <!-- Cropping & Resizing Modal (Enhanced) -->
+    <div id="cropResizeModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" id="closeCropResize">&times;</span>
+            <h2>Crop & Resize for Marketplace</h2>
+            <form id="cropResizeForm" enctype="multipart/form-data" style="margin-bottom:1.2rem;">
+                <input type="file" id="cropResizeInput" name="image" accept="image/*" hidden>
+                <div class="button-row">
+                    <button type="button" id="chooseCropResize" class="modal-btn">Choose Image</button>
+                </div>
+                <div id="suggestedCropResizeImagesContainer" style="margin-top:1.2rem;">
+                    <h4 style="margin-bottom:0.7rem;">Or try with a sample image:</h4>
+                    <div id="suggestedCropResizeImages" style="display:flex;gap:1.1rem;flex-wrap:wrap;justify-content:center;"></div>
+                </div>
+                <div id="cropResizePreview" style="text-align:center;margin-top:1.2rem;"></div>
+                <div style="margin-top:1.2rem;">
+                <label for="cropResizePlatform" style="font-weight:600;">Marketplace:</label>
+                <select id="cropResizePlatform" name="platform" class="styled-dropdown" style="margin-left:0.7rem;">
+                    <option value="meesho">Meesho (1024x1365)</option>
+                    <option value="meesho4x4">Meesho 4x4 (1000x1000)</option>
+                    <option value="amazon">Amazon (1000x1000)</option>
+                    <option value="instagram">Instagram (1080x1080)</option>
+                    <option value="shopify">Shopify (2048x2048)</option>
+                    <option value="flipkart">Flipkart (2000x2000)</option>
+                </select>
+                    <button type="submit" style="margin-left:1.2rem;" class="modal-btn">Crop & Resize</button>
+                    <button type="button" id="manualCropBtn" class="modal-btn" style="background:linear-gradient(90deg,#fff 0%,#8f5fff 100%);color:#8f5fff;border:2px solid #8f5fff;">Manual Crop</button>
+                </div>
+            </form>
+            <div id="cropResizeLoader" style="display:none;justify-content:center;align-items:center;margin-top:1.2rem;">
+                <div class="spinner"></div>
+                <div style="margin-left:10px;color:#8f5fff;font-weight:600;">Processing...</div>
+            </div>
+            <div id="cropResizeResult" style="display:none;text-align:center;margin-top:1.2rem;">
+                <img id="cropResizeImg" src="" alt="Cropped Product" style="max-width:220px;max-height:220px;border-radius:0.8rem;box-shadow:0 4px 18px rgba(143,95,255,0.13);background:#fff;border:2px solid #f4f0ff;display:block;margin:0 auto;" />
+                <a id="cropResizeDownload" href="#" download style="display:none;margin-top:1.1rem;" class="modal-btn">Download Cropped Image</a>
+            </div>
+            <div id="manualCropModal" style="display:none;flex-direction:column;align-items:center;justify-content:center;margin-top:1.2rem;">
+                <img id="manualCropImage" src="" style="max-width:340px;max-height:420px;border-radius:0.8rem;border:2px solid #8f5fff;box-shadow:0 4px 18px rgba(143,95,255,0.13);background:#fff;" />
+                <div style="margin-top:1.1rem;display:flex;gap:1.2rem;">
+                    <button id="confirmManualCrop" class="modal-btn">Crop & Resize</button>
+                    <button id="cancelManualCrop" class="modal-btn" style="background:#fff;color:#8f5fff;border:2px solid #8f5fff;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Background Replacement Modal (Enhanced) -->
+    <div id="bgReplaceModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <span class="close" id="closeBgReplace">&times;</span>
+            <h2>Background Replacement</h2>
+            <form id="bgReplaceForm" enctype="multipart/form-data" style="margin-bottom:1.2rem;">
+                <input type="file" id="bgReplaceInput" name="image" accept="image/*" hidden>
+                <div class="button-row">
+                    <button type="button" id="chooseBgReplace" class="modal-btn">Choose Image</button>
+                </div>
+                <div style="display:flex;gap:2rem;margin-top:1.2rem;">
+                    <div style="flex:1;">
+                        <h4 style="margin-bottom:0.7rem;">Or try with a sample image:</h4>
+                        <div id="suggestedBgReplaceImages" style="display:flex;gap:1.1rem;flex-wrap:wrap;justify-content:center;"></div>
+                        <div id="bgReplacePreview" style="text-align:center;margin-top:1.2rem;"></div>
+                    </div>
+                    <div style="flex:1;">
+                        <h4 style="margin-bottom:0.7rem;">Choose Background:</h4>
+                        <div id="bgReplacePicker" style="display:flex;gap:1.1rem;flex-wrap:wrap;justify-content:center;margin-bottom:1.2rem;"></div>
+                        <button type="submit" id="bgReplaceSubmit" class="modal-btn">Replace Background</button>
+                    </div>
+                </div>
+            </form>
+            <div id="bgReplaceLoader" style="display:none;justify-content:center;align-items:center;margin-top:1.2rem;">
+                <div class="spinner"></div>
+                <div style="margin-left:10px;color:#8f5fff;font-weight:600;">Processing...</div>
+            </div>
+            <div id="bgReplaceResult" style="display:none;text-align:center;margin-top:1.2rem;">
+                <img id="bgReplaceImg" src="" alt="Replaced Product" style="max-width:220px;max-height:220px;border-radius:0.8rem;box-shadow:0 4px 18px rgba(143,95,255,0.13);background:#fff;border:2px solid #f4f0ff;display:block;margin:0 auto;" />
+                <a id="bgReplaceDownload" href="#" download style="display:none;margin-top:1.1rem;" class="modal-btn">Download Image</a>
+            </div>
+        </div>
+    </div>
+    <style>
+    .modal-btn {
+        padding: 0.7rem 1.6rem;
+        border-radius: 0.7rem;
+        border: none;
+        font-size: 1.08rem;
+        font-weight: 600;
+        background: linear-gradient(90deg,#8f5fff 0%,#4f2cc9 100%);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(143,95,255,0.10);
+        cursor: pointer;
+        transition: background 0.2s, box-shadow 0.2s;
+        outline: none;
+        min-width: 150px;
+        max-width: 220px;
+        margin: 0.3rem 0.5rem;
+        display: inline-block;
+    }
+    .modal-btn:hover {
+        background: linear-gradient(90deg,#4f2cc9 0%,#8f5fff 100%);
+        box-shadow: 0 4px 16px rgba(143,95,255,0.18);
+    }
+    #autoEnhanceModalPreview img {
+        max-width: 320px;
+        max-height: 320px;
+        border-radius: 0.8rem;
+        box-shadow: 0 4px 18px rgba(143,95,255,0.13);
+        margin-top: 1.1rem;
+        background: #fff;
+        border: 2px solid #f4f0ff;
+    }
+    
+    /* Enhanced modal scrolling for background replacement */
+    #bgReplaceModal .modal-content {
+        max-width: 90vw;
+        width: 800px;
+        max-height: 75vh;
+        overflow-y: auto;
+        padding: 2.2rem 2.2rem;
+        background: #fff;
+        border-radius: 1.2rem;
+        box-shadow: 0 8px 32px rgba(143,95,255,0.13);
+        position: relative;
+        scrollbar-width: thin;
+        scrollbar-color: #8f5fff #f4f0ff;
+    }
+    
+    #bgReplaceModal .modal-content::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    #bgReplaceModal .modal-content::-webkit-scrollbar-track {
+        background: #f4f0ff;
+        border-radius: 4px;
+    }
+    
+    #bgReplaceModal .modal-content::-webkit-scrollbar-thumb {
+        background: #8f5fff;
+        border-radius: 4px;
+    }
+    
+    #bgReplaceModal .modal-content::-webkit-scrollbar-thumb:hover {
+        background: #4f2cc9;
+    }
+    
+    /* Ensure the close button stays at top right */
+    #bgReplaceModal .close {
+        position: absolute;
+        top: 1rem;
+        right: 1.5rem;
+        background: #fff;
+        z-index: 10;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 8px rgba(143,95,255,0.10);
+        font-size: 1.5rem;
+        line-height: 1;
+        width: 2rem;
+        height: 2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: background 0.2s, box-shadow 0.2s;
+    }
+    
+    #bgReplaceModal .close:hover {
+        background: #f4f0ff;
+        box-shadow: 0 4px 16px rgba(143,95,255,0.18);
+    }
+    
+    /* Ensure the title stays visible */
+    #bgReplaceModal h2 {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 9;
+        padding: 0.5rem 0;
+        margin: 0.5rem 0 1rem 0;
+        border-radius: 0.5rem;
+        padding-right: 3rem; /* Make space for close button */
+    }
+    </style>
+</body>
+</html> 

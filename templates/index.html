@@ -1,0 +1,2004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dead Stock Intelligence - Festival Based Clearance & Smart Discount Calculator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Landing Page Hero Section -->
+    <style>
+    .landing-hero {
+        position: relative;
+        width: 100vw;
+        left: 50%;
+        right: 50%;
+        margin-left: -50vw;
+        margin-right: -50vw;
+        min-height: 80vh;
+        background: linear-gradient(rgba(45,30,95,0.8), rgba(45,30,95,0.8)), url('https://images.unsplash.com/photo-1512436991641-6745cdb1723f?auto=format&fit=crop&w=1500&q=80') center/cover no-repeat;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: stretch;
+        z-index: 1;
+        padding-bottom: 4rem;
+    }
+    .landing-navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 2rem 4vw 0 4vw;
+        color: #fff;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        z-index: 2;
+    }
+    .landing-navbar .logo {
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: #ffd47a;
+    }
+    .landing-navbar .nav-links {
+        display: flex;
+        gap: 2.5rem;
+    }
+    .landing-navbar .nav-links a {
+        color: #fff;
+        text-decoration: none;
+        font-size: 1.1rem;
+        opacity: 0.85;
+        transition: color 0.2s;
+        position: relative;
+    }
+    .landing-navbar .nav-links a.active,
+    .landing-navbar .nav-links a:hover {
+        color: #ffd47a;
+        opacity: 1;
+    }
+    .landing-navbar .cta-btn {
+        background: linear-gradient(90deg, #a18fff 0%, #8f5fff 100%);
+        color: #fff;
+        border: none;
+        border-radius: 2rem;
+        padding: 0.7rem 2rem;
+        font-size: 1.08rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 2px 12px rgba(143,95,255,0.10);
+        transition: background 0.2s, transform 0.1s;
+        letter-spacing: 0.5px;
+    }
+    .landing-navbar .cta-btn:hover {
+        background: linear-gradient(90deg, #8f5fff 0%, #6d3be7 100%);
+        transform: translateY(-2px) scale(1.04);
+    }
+    .landing-hero-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        margin-top: 2rem;
+        margin-bottom: 3rem;
+        color: #fff;
+        z-index: 2;
+        padding: 0 2rem;
+    }
+    .landing-hero-content h1 {
+        font-size: 3.2rem;
+        font-weight: 900;
+        letter-spacing: 1px;
+        margin-bottom: 1.5rem;
+        color: #ffd47a;
+        text-shadow: 0 4px 24px rgba(0,0,0,0.18);
+        line-height: 1.2;
+    }
+    .landing-hero-content p {
+        font-size: 1.3rem;
+        color: #fff;
+        opacity: 0.95;
+        margin-bottom: 2.5rem;
+        font-weight: 500;
+        line-height: 1.7;
+        text-shadow: 0 2px 12px rgba(0,0,0,0.12);
+        max-width: 800px;
+    }
+    .landing-hero-content .hero-cta-btn {
+        background: linear-gradient(90deg, #a18fff 0%, #8f5fff 100%);
+        color: #fff;
+        border: none;
+        border-radius: 2rem;
+        padding: 1rem 2.5rem;
+        font-size: 1.2rem;
+        font-weight: 800;
+        cursor: pointer;
+        box-shadow: 0 2px 12px rgba(143,95,255,0.10);
+        transition: background 0.2s, transform 0.1s;
+        letter-spacing: 0.5px;
+    }
+    .landing-hero-content .hero-cta-btn:hover {
+        background: linear-gradient(90deg, #8f5fff 0%, #6d3be7 100%);
+        transform: translateY(-2px) scale(1.04);
+    }
+    
+    /* Feature Cards Styling */
+    .feature-cards-row {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        padding: 0 4vw;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+    }
+    .feature-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 1.2rem;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+        flex: 1;
+        min-width: 100px;
+        max-width: 280px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 420px; /* Increased fixed height for better alignment */
+        justify-content: space-between;
+    }
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #a18fff 0%, #8f5fff 100%);
+    }
+    .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+        background: rgba(255, 255, 255, 1);
+    }
+    .feature-img {
+        width: 100%;
+        height: 140px;
+        object-fit: cover;
+        border-radius: 0.8rem;
+        margin-bottom: 1.2rem;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+    .feature-card h3 {
+        color: #2d1e5f;
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.5px;
+        flex-shrink: 0; /* Prevent title from shrinking */
+    }
+    .feature-card p {
+        color: #5e4a8c;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        margin-bottom: 1.2rem;
+        opacity: 0.9;
+        flex-grow: 1; /* Allow paragraph to take available space */
+        min-height: 60px; /* Ensure minimum height for consistent spacing */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .feature-btn {
+        background: linear-gradient(90deg, #a18fff 0%, #8f5fff 100%);
+        color: #fff;
+        text-decoration: none;
+        padding: 0.6rem 1.2rem;
+        border-radius: 1.2rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        transition: all 0.3s ease;
+        display: inline-block;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(143, 95, 255, 0.2);
+        margin-top: auto; /* Push button to bottom */
+        align-self: center; /* Center the button */
+        flex-shrink: 0; /* Prevent button from shrinking */
+        width: fit-content; /* Ensure button width fits content */
+    }
+    .feature-btn:hover {
+        background: linear-gradient(90deg, #8f5fff 0%, #6d3be7 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(143, 95, 255, 0.3);
+        color: #fff;
+        text-decoration: none;
+    }
+    
+    @media (max-width: 900px) {
+      .landing-hero-content h1 { 
+        font-size: 2.2rem; 
+        line-height: 1.3;
+      }
+      .landing-hero-content p {
+        font-size: 1.1rem;
+      }
+      .landing-navbar { 
+        flex-direction: column; 
+        gap: 1rem; 
+      }
+      .feature-cards-row {
+        flex-direction: column;
+        align-items: center;
+      }
+      .feature-card {
+        min-width: 250px;
+        max-width: 320px;
+        height: auto; /* Allow natural height on mobile */
+        min-height: 380px; /* Increased minimum height for better alignment */
+      }
+    }
+    @media (max-width: 600px) {
+      .landing-hero-content h1 { 
+        font-size: 1.8rem; 
+      }
+      .landing-hero-content p {
+        font-size: 1rem;
+      }
+      .feature-card {
+        min-width: 220px;
+        padding: 1.2rem;
+        min-height: 350px; /* Increased minimum height for better alignment */
+      }
+    }
+    </style>
+    <div class="landing-hero">
+      <nav class="landing-navbar">
+        <div class="logo">STOCKLIFT.</div>
+        <button class="cta-btn" onclick="window.location.href='/get-in-touch'">Get in Touch</button>
+      </nav>
+      <div class="landing-hero-content">
+        <h1 class="typewriter">Turn Dead Stock Into Festival Sales Gold</h1>
+        <p>Empowering shopkeepers to boost sales with festival-driven campaigns, AI-powered discount tools, and actionable product analytics.<br>
+Streamline your inventory, maximize profits, and make every festival a sales opportunity with intelligent insights.</p>
+      </div>
+      <!-- Feature Cards Section -->
+      <div class="feature-cards-row">
+        <div class="feature-card">
+          <img src="/static/img/c.jpg" alt="Photogenix AI" class="feature-img">
+          <h3>Photogenix AI</h3>
+          <p>Enhance your product images with AI-powered background removal and professional touch-ups.</p>
+          <a href="/photogenix" class="feature-btn">Try Photogenix</a>
+        </div>
+        <div class="feature-card">
+          <img src="/static/impimages/festivals.jpg" alt="Scroll to Features" class="feature-img">
+          <h3>Explore Festivals</h3>
+          <p>Browse upcoming festivals in your region and unlock actionable insights to boost your sales.</p>
+          <a href="#" class="feature-btn" onclick="document.getElementById('festival-dashboard').scrollIntoView({behavior: 'smooth'}); return false;">Explore Festivals & Insights</a>
+        </div>
+        <div class="feature-card">
+          <img src="/static/impimages/timetrust.jpg" alt="Festival Campaign Generator" class="feature-img">
+          <h3>Campaign Generator</h3>
+          <p>Create ready-to-use campaigns for any festival—banners, messages, and offers tailored to your shop & region.</p>
+          <a href="/campaign-generator" class="feature-btn">Generate Campaign</a>
+        </div>
+      </div>
+      <!-- End Feature Cards Section -->
+    </div>
+    <!-- End Landing Page Hero Section -->
+    <script>
+    // Typewriter effect for headline
+    const typewriter = document.querySelector('.typewriter');
+    if(typewriter) {
+      const text = typewriter.innerHTML;
+      typewriter.innerHTML = '';
+      let i = 0;
+      function type() {
+        if (i < text.length) {
+          typewriter.innerHTML += text.charAt(i);
+          i++;
+          setTimeout(type, text.charAt(i-1) === '<' ? 0 : 40);
+        }
+      }
+      type();
+    }
+    </script>
+
+    <!-- Pretty Header Section -->
+    <style>
+    .pretty-header {
+        background: #e6dbff;
+        border-radius: 2rem;
+        box-shadow: 0 8px 32px rgba(143,95,255,0.10);
+        padding: 2.2rem 2.5rem 1.5rem 2.5rem;
+        margin: 17rem 0 2.5rem 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+    }
+    .pretty-header-title {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .pretty-header-title h1 {
+        font-size: 2.3rem;
+        font-weight: 900;
+        color: #2d1e5f;
+        margin: 0 0 0.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+    }
+    .pretty-header-title h1 i {
+        font-size: 2.1rem;
+        color: #8f5fff;
+    }
+    .pretty-header-title p {
+        font-size: 1.18rem;
+        color: #7c6cae;
+        margin: 0;
+        font-weight: 500;
+    }
+    .pretty-header-login {
+        position: absolute;
+        right: 2.5rem;
+        top: 2.2rem;
+    }
+    .pretty-header-login a {
+        background: linear-gradient(90deg, #8f5fff 0%, #6d3be7 100%);
+        color: #fff;
+        border: 2px solid #f3e6ff;
+        border-radius: 0.8rem;
+        padding: 0.7rem 1.7rem;
+        font-size: 1.08rem;
+        font-weight: 700;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        box-shadow: 0 2px 12px rgba(143,95,255,0.10);
+        transition: background 0.2s, color 0.2s, border 0.2s;
+    }
+    .pretty-header-login a:hover {
+        background: #8f5fff;
+        color: #fff;
+        border: 2px solid #8f5fff;
+    }
+    .pretty-header-login i {
+        font-size: 1.2rem;
+    }
+    @media (max-width: 900px) {
+        .pretty-header {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 1.5rem 1rem 1.2rem 1rem;
+        }
+        .pretty-header-login {
+            position: static;
+            margin-top: 1.2rem;
+            align-self: flex-end;
+        }
+    }
+    </style>
+    <div class="pretty-header">
+        <div class="pretty-header-title">
+                    <h1><i class="fas fa-chart-line"></i> Dead Stock Intelligence</h1>
+                    <p>Festival Based Clearance & Smart Discount Calculator</p>
+                </div>
+        <div class="pretty-header-login">
+  {% if session.get('shopkeeper_logged_in') %}
+    <a href="/logout" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+  {% else %}
+            <a href="/login"><i class="fas fa-store"></i> Shopkeeper Login</a>
+  {% endif %}
+                    </div>
+                </div>
+
+        <!-- Location Selector -->
+       
+        <!-- Health Statistics Dashboard -->
+        <div id="healthStats" class="health-stats" style="display: none;">
+            <h2><i class="fas fa-chart-pie"></i> Inventory Health Overview</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Products</h3>
+                    <div class="value" id="totalProducts">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Dead Stock</h3>
+                    <div class="value" id="deadStock">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>At Risk</h3>
+                    <div class="value" id="atRisk">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Healthy</h3>
+                    <div class="value" id="healthy">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rescue Potential</h3>
+                    <div class="value" id="rescuePotential">₹-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Upcoming Opportunities</h3>
+                    <div class="value" id="upcomingOpportunities">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Dashboard -->
+        <style>
+        /* Health Stats Styling */
+        .health-stats {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2rem;
+            padding: 3rem;
+            margin: 3rem 0;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+            color: #fff;
+        }
+        
+        .health-stats h2 {
+            color: #fff;
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-bottom: 2rem;
+            text-align: center;
+            text-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        }
+        
+        .stat-card h3 {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+        }
+        
+        .stat-card .value {
+            color: #fff;
+            font-size: 2rem;
+            font-weight: 900;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .features-dashboard {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin: 2.5rem 0 2.5rem 0;
+            flex-wrap: wrap;
+            padding-left: 3rem;
+            padding-right: 3rem;
+        }
+        .feature-info-card {
+            background: #fff;
+            border-radius: 1.2rem;
+            box-shadow: 0 4px 24px rgba(143,95,255,0.08);
+            padding: 1.1rem 1.1rem 0.7rem 1.1rem;
+            min-width: 180px;
+            max-width: 240px;
+            flex: 1 1 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            border: 1.5px solid #f3e6ff;
+            transition: box-shadow 0.2s, transform 0.2s;
+            min-height: 170px;
+            max-height: 210px;
+        }
+        .feature-info-card:hover {
+            box-shadow: 0 8px 32px rgba(143,95,255,0.13);
+            transform: translateY(-4px) scale(1.03);
+        }
+        .feature-info-card i {
+            font-size: 2.2rem;
+            margin-bottom: 0.7rem;
+            color: #e68f0c;
+        }
+        .feature-info-card .feature-icon-calendar {
+            color: #ff9800;
+        }
+        .feature-info-card .feature-icon-bundle {
+            color: #4db6ac;
+        }
+        .feature-info-card .feature-icon-location {
+            color: #29b6f6;
+        }
+        .feature-info-card .feature-icon-profit {
+            color: #43a047;
+        }
+        .feature-info-card h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 0.3rem;
+            color: #2d1e5f;
+        }
+        .feature-info-card p {
+            font-size: 0.89rem;
+            color: #5e4a8c;
+            opacity: 0.92;
+            margin-bottom: 0;
+        }
+        @media (max-width: 900px) {
+            .features-dashboard {
+                flex-direction: column;
+                align-items: center;
+                gap: 1.2rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .feature-info-card {
+                min-width: 220px;
+                max-width: 340px;
+            }
+        }
+        </style>
+        <div class="features-dashboard">
+            <div class="feature-info-card">
+                <i class="fas fa-pencil-alt"></i>
+                <h4>AI-Powered Analysis</h4>
+                <p>Smart algorithms analyze your inventory health and suggest optimal discounts</p>
+            </div>
+            <div class="feature-info-card">
+                <i class="fas fa-calendar-alt feature-icon-calendar"></i>
+                <h4>Festival Intelligence</h4>
+                <p>500+ festivals across India with tailored promotion strategies</p>
+            </div>
+            <div class="feature-info-card">
+                <i class="fas fa-gift feature-icon-bundle"></i>
+                <h4>Smart Bundling</h4>
+                <p>Create attractive product bundles to boost sales and clear inventory</p>
+            </div>
+            <div class="feature-info-card">
+                <i class="fas fa-map-marker-alt feature-icon-location"></i>
+                <h4>Location-Based</h4>
+                <p>Region-specific insights for 100+ Indian cities and markets</p>
+            </div>
+            <div class="feature-info-card">
+                <i class="fas fa-chart-line feature-icon-profit"></i>
+                <h4>Profit Optimization</h4>
+                <p>Maximize revenue while clearing slow-moving inventory efficiently</p>
+            </div>
+        </div>
+
+        <!-- Product Analysis & Bundle Creation Side by Side -->
+        <style>
+        .forms-row {
+            display: flex;
+            gap: 2.5rem;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+        }
+        .forms-row > div {
+            flex: 1 1 350px;
+            min-width: 320px;
+            background: rgba(255,255,255,0.92);
+            border-radius: 1.2rem;
+            box-shadow: 0 4px 24px rgba(143,95,255,0.08);
+            padding: 2rem 1.5rem 1.5rem 1.5rem;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .forms-row .analysis-section,
+        .forms-row .bundle-section {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        .forms-row .product-form,
+        .forms-row .bundle-form {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        
+        .forms-row .btn-primary {
+            margin-top: auto;
+            align-self: center;
+            width: fit-content;
+        }
+        @media (max-width: 900px) {
+            .forms-row {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+            .forms-row > div {
+                min-width: 0;
+                padding: 1.2rem 0.7rem;
+            }
+        }
+        </style>
+        <div class="forms-row">
+            <div>
+                <div class="analysis-section">
+                    <h2><i class="fas fa-search"></i> Smart Discount Calculator </h2>
+                    <form id="productForm" class="product-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="productName">Product Name</label>
+                                <input type="text" id="productName" name="name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="productCategory">Category</label>
+                                <select id="productCategory" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="clothing">Clothing</option>
+                                    <option value="electronics">Electronics</option>
+                                    <option value="home_decor">Home Decor</option>
+                                    <option value="beauty">Beauty</option>
+                                    <option value="books">Books</option>
+                                    <option value="sports">Sports</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="productPrice">Price (₹)</label>
+                                <input type="number" id="productPrice" name="price" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="stockQuantity">Stock Quantity</label>
+                                <input type="number" id="stockQuantity" name="stock_quantity" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="daysInStock">Days in Stock</label>
+                                <input type="number" id="daysInStock" name="days_in_stock" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="salesVelocity">Sales Velocity (units/day)</label>
+                                <input type="number" id="salesVelocity" name="sales_velocity" step="0.01" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-magic"></i> Analyze Product
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div>
+                <div class="bundle-section">
+                    <h2><i class="fas fa-handshake"></i> Create Custom Bundle</h2>
+                    <p class="feature-description">Combine multiple products from different sellers to create attractive festival bundles. Perfect for cross-selling and increasing order value during peak shopping seasons. Includes smart discount calculations for bundle pricing. Connect with local sellers and maximize festival sales opportunities.</p>
+                    <form id="bundleForm" class="bundle-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="primaryProduct">Primary Product</label>
+                                <input type="text" id="primaryProduct" name="primary_product" placeholder="e.g., Navratri Lehenga" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="primaryPrice">Price (₹)</label>
+                                <input type="number" id="primaryPrice" name="primary_price" step="0.01" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="comboProducts">Combo Products (comma separated)</label>
+                                <input type="text" id="comboProducts" name="combo_products" placeholder="e.g., Oxidised Jewellery, Bangles, Anklets" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="bundleLocation">Location</label>
+                                <select id="bundleLocation" name="location" required>
+                <option value="">Select Location</option>
+                <option value="agartala">Agartala, Tripura</option>
+                <option value="agra">Agra, Uttar Pradesh</option>
+                <option value="ahmedabad">Ahmedabad, Gujarat</option>
+                <option value="aizawl">Aizawl, Mizoram</option>
+                <option value="ajmer">Ajmer, Rajasthan</option>
+                <option value="alappuzha">Alappuzha, Kerala</option>
+                <option value="allahabad">Allahabad, Uttar Pradesh</option>
+                <option value="amritsar">Amritsar, Punjab</option>
+                <option value="anand">Anand, Gujarat</option>
+                <option value="asansol">Asansol, West Bengal</option>
+                <option value="aurangabad">Aurangabad, Maharashtra</option>
+                <option value="bangalore">Bangalore, Karnataka</option>
+                <option value="bardhaman">Bardhaman, West Bengal</option>
+                <option value="bathinda">Bathinda, Punjab</option>
+                <option value="belgaum">Belgaum, Karnataka</option>
+                <option value="berhampur">Berhampur, Odisha</option>
+                <option value="bhagalpur">Bhagalpur, Bihar</option>
+                <option value="bhavnagar">Bhavnagar, Gujarat</option>
+                <option value="bhilai">Bhilai, Chhattisgarh</option>
+                <option value="bhopal">Bhopal, Madhya Pradesh</option>
+                <option value="bhubaneswar">Bhubaneswar, Odisha</option>
+                <option value="bikaner">Bikaner, Rajasthan</option>
+                <option value="bilaspur">Bilaspur, Chhattisgarh</option>
+                <option value="bokaro">Bokaro, Jharkhand</option>
+                <option value="calicut">Calicut, Kerala</option>
+                <option value="chandigarh">Chandigarh</option>
+                <option value="chennai">Chennai, Tamil Nadu</option>
+                <option value="coimbatore">Coimbatore, Tamil Nadu</option>
+                <option value="cuttack">Cuttack, Odisha</option>
+                <option value="dehradun">Dehradun, Uttarakhand</option>
+                <option value="delhi">Delhi</option>
+                <option value="dhanbad">Dhanbad, Jharkhand</option>
+                <option value="dibrugarh">Dibrugarh, Assam</option>
+                <option value="durgapur">Durgapur, West Bengal</option>
+                <option value="erode">Erode, Tamil Nadu</option>
+                <option value="faridabad">Faridabad, Haryana</option>
+                <option value="gangtok">Gangtok, Sikkim</option>
+                <option value="gaya">Gaya, Bihar</option>
+                <option value="ghaziabad">Ghaziabad, Uttar Pradesh</option>
+                <option value="gulbarga">Gulbarga, Karnataka</option>
+                <option value="guntur">Guntur, Andhra Pradesh</option>
+                <option value="gurgaon">Gurgaon, Haryana</option>
+                <option value="gurugram">Gurugram, Haryana</option>
+                <option value="guwahati">Guwahati, Assam</option>
+                <option value="gwalior">Gwalior, Madhya Pradesh</option>
+                <option value="hazaribagh">Hazaribagh, Jharkhand</option>
+                <option value="hisar">Hisar, Haryana</option>
+                <option value="howrah">Howrah, West Bengal</option>
+                <option value="hubli">Hubli, Karnataka</option>
+                <option value="hyderabad">Hyderabad, Telangana</option>
+                <option value="imphal">Imphal, Manipur</option>
+                <option value="indore">Indore, Madhya Pradesh</option>
+                <option value="itanagar">Itanagar, Arunachal Pradesh</option>
+                <option value="jabalpur">Jabalpur, Madhya Pradesh</option>
+                <option value="jalandhar">Jalandhar, Punjab</option>
+                <option value="jamnagar">Jamnagar, Gujarat</option>
+                <option value="jamshedpur">Jamshedpur, Jharkhand</option>
+                <option value="jaipur">Jaipur, Rajasthan</option>
+                <option value="jodhpur">Jodhpur, Rajasthan</option>
+                <option value="jorhat">Jorhat, Assam</option>
+                <option value="karnal">Karnal, Haryana</option>
+                <option value="karimnagar">Karimnagar, Telangana</option>
+                <option value="kohima">Kohima, Nagaland</option>
+                <option value="kolhapur">Kolhapur, Maharashtra</option>
+                <option value="kollam">Kollam, Kerala</option>
+                <option value="kochi">Kochi, Kerala</option>
+                <option value="korba">Korba, Chhattisgarh</option>
+                <option value="kolkata">Kolkata, West Bengal</option>
+                <option value="kanpur">Kanpur, Uttar Pradesh</option>
+                <option value="lucknow">Lucknow, Uttar Pradesh</option>
+                <option value="ludhiana">Ludhiana, Punjab</option>
+                <option value="madurai">Madurai, Tamil Nadu</option>
+                <option value="mangalore">Mangalore, Karnataka</option>
+                <option value="mohali">Mohali, Punjab</option>
+                <option value="mumbai">Mumbai, Maharashtra</option>
+                <option value="muzaffarpur">Muzaffarpur, Bihar</option>
+                <option value="mysore">Mysore, Karnataka</option>
+                <option value="nagpur">Nagpur, Maharashtra</option>
+                <option value="nashik">Nashik, Maharashtra</option>
+                <option value="nizamabad">Nizamabad, Telangana</option>
+                <option value="noida">Noida, Uttar Pradesh</option>
+                <option value="palakkad">Palakkad, Kerala</option>
+                <option value="panaji">Panaji, Goa</option>
+                <option value="panipat">Panipat, Haryana</option>
+                <option value="patiala">Patiala, Punjab</option>
+                <option value="patna">Patna, Bihar</option>
+                <option value="pune">Pune, Maharashtra</option>
+                <option value="purnia">Purnia, Bihar</option>
+                <option value="raipur">Raipur, Chhattisgarh</option>
+                <option value="rajkot">Rajkot, Gujarat</option>
+                <option value="ranchi">Ranchi, Jharkhand</option>
+                <option value="rohtak">Rohtak, Haryana</option>
+                <option value="rourkela">Rourkela, Odisha</option>
+                <option value="sambalpur">Sambalpur, Odisha</option>
+                <option value="salem">Salem, Tamil Nadu</option>
+                <option value="shillong">Shillong, Meghalaya</option>
+                <option value="shimla">Shimla, Himachal Pradesh</option>
+                <option value="silchar">Silchar, Assam</option>
+                <option value="siliguri">Siliguri, West Bengal</option>
+                <option value="solapur">Solapur, Maharashtra</option>
+                <option value="surat">Surat, Gujarat</option>
+                <option value="tezpur">Tezpur, Assam</option>
+                <option value="thane">Thane, Maharashtra</option>
+                <option value="thiruvananthapuram">Thiruvananthapuram, Kerala</option>
+                <option value="thrissur">Thrissur, Kerala</option>
+                <option value="tiruchirappalli">Tiruchirappalli, Tamil Nadu</option>
+                <option value="tiruppur">Tiruppur, Tamil Nadu</option>
+                <option value="udaipur">Udaipur, Rajasthan</option>
+                <option value="ujjain">Ujjain, Madhya Pradesh</option>
+                <option value="vadodara">Vadodara, Gujarat</option>
+                <option value="varanasi">Varanasi, Uttar Pradesh</option>
+                <option value="vellore">Vellore, Tamil Nadu</option>
+                <option value="vijayawada">Vijayawada, Andhra Pradesh</option>
+                <option value="visakhapatnam">Visakhapatnam, Andhra Pradesh</option>
+                <option value="warangal">Warangal, Telangana</option>
+            </select>
+        </div>
+            </div>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-plus"></i> Create Bundle
+                        </button>
+                    </form>
+            </div>
+            </div>
+            </div>
+
+        <!-- Seller Recommendations Section -->
+        <div id="sellerRecommendations" class="seller-recommendations" style="display: none;">
+            <h3><i class="fas fa-users"></i> Smart Seller Recommendations</h3>
+            <div id="sellerRecommendationsContent" class="seller-recommendations-content"></div>
+            </div>
+
+        <!-- Bundle Results -->
+        <div id="bundleResults" class="bundle-results" style="display: none;">
+            <h3><i class="fas fa-gift"></i> Bundle Created Successfully!</h3>
+            <div id="bundleDetails" class="bundle-details"></div>
+        </div>
+
+        <!-- Analysis Results Section -->
+        <div id="resultsSection" class="results-section" style="display: none;">
+            <h2><i class="fas fa-chart-line"></i> Analysis Results</h2>
+            
+            <!-- Health Metrics -->
+            <div class="health-metrics">
+                <h3><i class="fas fa-heartbeat"></i> Product Health</h3>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <label>Health Score</label>
+                        <div class="value" id="healthScoreDisplay">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <label>Health Status</label>
+                        <div class="value" id="healthStatusDisplay">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <label>Stock Age</label>
+                        <div class="value" id="stockAgeDisplay">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <label>Stock Quantity</label>
+                        <div class="value" id="stockQuantityDisplay">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <label>Sales Velocity</label>
+                        <div class="value" id="salesVelocityDisplay">-</div>
+                    </div>
+                    <div class="metric-card">
+                        <label>Risk Score</label>
+                        <div class="value" id="riskScoreDisplay">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discount Calculator Results -->
+            <div class="discount-calculator-results">
+                <h3><i class="fas fa-percentage"></i> Smart Discount Recommendations</h3>
+                <div class="discount-grid">
+                    <div class="discount-card">
+                        <label>Original Price</label>
+                        <div class="value" id="originalPrice">₹-</div>
+                    </div>
+                    <div class="discount-card">
+                        <label>Recommended Discount</label>
+                        <div class="value highlight" id="recommendedDiscount">-%</div>
+                    </div>
+                    <div class="discount-card">
+                        <label>Discounted Price</label>
+                        <div class="value" id="discountedPrice">₹-</div>
+                    </div>
+                    <div class="discount-card">
+                        <label>Total Savings</label>
+                        <div class="value" id="totalSavings">₹-</div>
+                    </div>
+                    <div class="discount-card">
+                        <label>Expected Revenue</label>
+                        <div class="value" id="expectedRevenue">₹-</div>
+                    </div>
+                </div>
+                <div class="discount-strategy">
+                    <h4><i class="fas fa-lightbulb"></i> Strategy</h4>
+                    <p id="discountStrategy">-</p>
+                </div>
+            </div>
+
+            <!-- Sales Recommendations -->
+            <div class="sales-recommendations">
+                <h3><i class="fas fa-bullseye"></i> Sales Strategy</h3>
+                <div class="recommendations-grid">
+                    <div class="recommendation-card">
+                        <h4><i class="fas fa-users"></i> Target Audience</h4>
+                        <p id="targetAudience">-</p>
+                    </div>
+                    <div class="recommendation-card">
+                        <h4><i class="fas fa-tags"></i> Pricing Strategy</h4>
+                        <p id="pricingStrategy">-</p>
+                    </div>
+                    <div class="recommendation-card">
+                        <h4><i class="fas fa-megaphone"></i> Marketing Approach</h4>
+                        <p id="marketingApproach">-</p>
+                    </div>
+                    <div class="recommendation-card">
+                        <h4><i class="fas fa-clock"></i> Timeline</h4>
+                        <p id="salesTimeline">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Festival Recommendations -->
+            <div class="festival-recommendations-section">
+                <h3><i class="fas fa-calendar-alt"></i> Festival Opportunities</h3>
+                <div id="festivalRecommendations" class="festival-recommendations">
+                    <div class="no-data">Loading festival recommendations...</div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            /* Results Section Styling */
+            .results-section {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 2rem;
+                padding: 3rem;
+                margin: 3rem 0;
+                box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+                color: #fff;
+            }
+            
+            .results-section h2 {
+                color: #fff;
+                font-size: 2.5rem;
+                font-weight: 900;
+                margin-bottom: 2rem;
+                text-align: center;
+                text-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            }
+            
+            .results-section h3 {
+                color: #fff;
+                font-size: 1.8rem;
+                font-weight: 800;
+                margin-bottom: 1.5rem;
+                display: flex;
+                align-items: center;
+                gap: 0.8rem;
+            }
+            
+            .metrics-grid, .discount-grid, .recommendations-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 1.5rem;
+                margin-bottom: 2rem;
+            }
+            
+            .metric-card, .discount-card, .recommendation-card {
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                transition: transform 0.3s, box-shadow 0.3s;
+            }
+            
+            .metric-card:hover, .discount-card:hover, .recommendation-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            }
+            
+            .metric-card label, .discount-card label {
+                color: rgba(255, 255, 255, 0.9);
+                font-size: 0.9rem;
+                font-weight: 600;
+                margin-bottom: 0.5rem;
+                display: block;
+            }
+            
+            .metric-card .value, .discount-card .value {
+                color: #fff;
+                font-size: 1.5rem;
+                font-weight: 900;
+                text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            }
+            
+            .discount-card .value.highlight {
+                color: #ffd47a;
+                font-size: 2rem;
+            }
+            
+            .recommendation-card h4 {
+                color: #ffd47a;
+                font-size: 1.2rem;
+                font-weight: 800;
+                margin-bottom: 0.8rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            
+            .recommendation-card p {
+                color: rgba(255, 255, 255, 0.95);
+                font-size: 1rem;
+                line-height: 1.6;
+            }
+            
+            /* Enhanced styling for sales strategy cards */
+            .sales-recommendations .recommendation-card {
+                background: rgba(255, 255, 255, 0.12);
+                border-radius: 1.2rem;
+                padding: 1.8rem;
+                border: 1px solid rgba(255, 255, 255, 0.25);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .sales-recommendations .recommendation-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, #ffd47a 0%, #ffb347 100%);
+                border-radius: 1.2rem 1.2rem 0 0;
+            }
+            
+            .sales-recommendations .recommendation-card:hover {
+                transform: translateY(-8px);
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+                background: rgba(255, 255, 255, 0.18);
+                border: 1px solid rgba(255, 255, 255, 0.35);
+            }
+            
+            .sales-recommendations .recommendation-card h4 {
+                color: #ffd47a;
+                font-size: 1.3rem;
+                font-weight: 900;
+                margin-bottom: 1rem;
+                text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            }
+            
+            .sales-recommendations .recommendation-card p {
+                color: rgba(255, 255, 255, 0.98);
+                font-size: 1.05rem;
+                line-height: 1.7;
+                font-weight: 500;
+            }
+            
+            /* Product Analysis Results - Sales Strategy Styling */
+            .results-section .sales-recommendations {
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 1.8rem;
+                padding: 2.5rem;
+                margin-top: 2.5rem;
+                backdrop-filter: blur(15px);
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .results-section .sales-recommendations::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: linear-gradient(90deg, #ffd47a 0%, #ffb347 50%, #ff8c42 100%);
+                border-radius: 1.8rem 1.8rem 0 0;
+            }
+            
+            .results-section .sales-recommendations h3 {
+                color: #ffd47a;
+                font-size: 2rem;
+                font-weight: 900;
+                margin-bottom: 2rem;
+                text-align: center;
+                text-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+                position: relative;
+                z-index: 1;
+            }
+            
+            .results-section .sales-recommendations .recommendations-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 2rem;
+                margin-bottom: 0;
+            }
+            
+            .results-section .sales-recommendations .recommendation-card {
+                background: rgba(255, 255, 255, 0.18);
+                border-radius: 1.5rem;
+                padding: 2rem;
+                border: 1px solid rgba(255, 255, 255, 0.35);
+                transition: all 0.4s ease;
+                position: relative;
+                overflow: hidden;
+                backdrop-filter: blur(10px);
+            }
+            
+            .results-section .sales-recommendations .recommendation-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 4px;
+                background: linear-gradient(90deg, #ffd47a 0%, #ffb347 100%);
+                border-radius: 1.5rem 1.5rem 0 0;
+            }
+            
+            .results-section .sales-recommendations .recommendation-card:hover {
+                transform: translateY(-10px) scale(1.02);
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+                background: rgba(255, 255, 255, 0.25);
+                border: 1px solid rgba(255, 255, 255, 0.5);
+            }
+            
+            .results-section .sales-recommendations .recommendation-card h4 {
+                color: #ffd47a;
+                font-size: 1.4rem;
+                font-weight: 900;
+                margin-bottom: 1.2rem;
+                text-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+                display: flex;
+                align-items: center;
+                gap: 0.8rem;
+            }
+            
+            .results-section .sales-recommendations .recommendation-card h4 i {
+                font-size: 1.3rem;
+                color: #ffb347;
+            }
+            
+            .results-section .sales-recommendations .recommendation-card p {
+                color: rgba(255, 255, 255, 0.98);
+                font-size: 1.1rem;
+                line-height: 1.8;
+                font-weight: 500;
+                text-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+            }
+            
+            .discount-strategy {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                margin-top: 1.5rem;
+            }
+            
+            .discount-strategy h4 {
+                color: #ffd47a;
+                font-size: 1.3rem;
+                font-weight: 800;
+                margin-bottom: 1rem;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+            }
+            
+            .discount-strategy p {
+                color: rgba(255, 255, 255, 0.95);
+                font-size: 1.1rem;
+                line-height: 1.7;
+            }
+            
+            .sales-recommendations {
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 1.5rem;
+                padding: 2rem;
+                margin-top: 2rem;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            }
+            
+            .festival-recommendations-section {
+                margin-top: 2rem;
+            }
+            
+            .festival-recommendations {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 1.5rem;
+            }
+            
+            .recommendation-item {
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            
+            .recommendation-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+            
+            .recommendation-header h4 {
+                color: #ffd47a;
+                font-size: 1.2rem;
+                font-weight: 800;
+            }
+            
+            .relevance-score {
+                background: rgba(255, 212, 122, 0.2);
+                color: #ffd47a;
+                padding: 0.3rem 0.8rem;
+                border-radius: 1rem;
+                font-size: 0.8rem;
+                font-weight: 700;
+            }
+            
+            .no-data {
+                color: rgba(255, 255, 255, 0.7);
+                text-align: center;
+                font-style: italic;
+                padding: 2rem;
+            }
+            
+            /* Responsive design for sales recommendations */
+            @media (max-width: 768px) {
+                .sales-recommendations {
+                    padding: 1.5rem;
+                    border-radius: 1.2rem;
+                }
+                
+                .sales-recommendations .recommendation-card {
+                    padding: 1.5rem;
+                    border-radius: 1rem;
+                }
+                
+                .sales-recommendations .recommendation-card h4 {
+                    font-size: 1.2rem;
+                }
+                
+                .sales-recommendations .recommendation-card p {
+                    font-size: 1rem;
+                }
+                
+                /* Product Analysis Results - Mobile Responsive */
+                .results-section .sales-recommendations {
+                    padding: 2rem;
+                    border-radius: 1.5rem;
+                    margin-top: 2rem;
+                }
+                
+                .results-section .sales-recommendations h3 {
+                    font-size: 1.8rem;
+                    margin-bottom: 1.5rem;
+                }
+                
+                .results-section .sales-recommendations .recommendations-grid {
+                    grid-template-columns: 1fr;
+                    gap: 1.5rem;
+                }
+                
+                .results-section .sales-recommendations .recommendation-card {
+                    padding: 1.8rem;
+                    border-radius: 1.2rem;
+                }
+                
+                .results-section .sales-recommendations .recommendation-card h4 {
+                    font-size: 1.3rem;
+                    margin-bottom: 1rem;
+                }
+                
+                .results-section .sales-recommendations .recommendation-card p {
+                    font-size: 1rem;
+                    line-height: 1.6;
+                }
+            }
+            
+            .location-selector-wrapper {
+            display: flex;
+                justify-content: center;
+                align-items: center;
+                margin: 2.5rem 0 2.5rem 0;
+            }
+            .location-selector {
+                background: #fff;
+            border-radius: 1.2rem;
+                box-shadow: 0 4px 24px rgba(143,95,255,0.10);
+                padding: 1.5rem 2.5rem;
+                display: flex;
+                align-items: center;
+                gap: 1.5rem;
+                min-width: 340px;
+                max-width: 600px;
+                margin: 0 auto;
+            }
+            .location-selector label {
+                font-size: 1.18rem;
+                font-weight: 700;
+                color: #2d1e5f;
+                margin-right: 0.7rem;
+                white-space: nowrap;
+            }
+            .location-selector select {
+                font-size: 1.08rem;
+                padding: 0.7rem 1.5rem;
+                border-radius: 0.7rem;
+                border: 1.5px solid #e6dbff;
+                background: #f8f9fa;
+                color: #2d1e5f;
+                font-weight: 600;
+                box-shadow: 0 2px 8px rgba(143,95,255,0.07);
+                outline: none;
+                transition: box-shadow 0.2s, border 0.2s;
+                min-width: 200px;
+            }
+            .location-selector select:focus {
+                box-shadow: 0 0 0 2px #a18fff;
+                border: 1.5px solid #8f5fff;
+            }
+            @media (max-width: 700px) {
+                .location-selector {
+                    flex-direction: column;
+                    gap: 1rem;
+                padding: 1.2rem 0.7rem;
+                    min-width: 0;
+                    max-width: 99vw;
+                }
+                .location-selector-wrapper {
+                    margin: 1.2rem 0 1.2rem 0;
+            }
+        }
+        </style>
+            <div class="location-selector-wrapper">
+                <div class="location-selector">
+                    <label for="locationSelect">Select Your Location:</label>
+                    <select id="locationSelect" onchange="changeLocation()">
+                                    <option value="">Select Location</option>
+                                    <option value="agartala">Agartala, Tripura</option>
+                                    <option value="agra">Agra, Uttar Pradesh</option>
+                                    <option value="ahmedabad">Ahmedabad, Gujarat</option>
+                                    <option value="aizawl">Aizawl, Mizoram</option>
+                                    <option value="ajmer">Ajmer, Rajasthan</option>
+                                    <option value="alappuzha">Alappuzha, Kerala</option>
+                                    <option value="allahabad">Allahabad, Uttar Pradesh</option>
+                                    <option value="amritsar">Amritsar, Punjab</option>
+                                    <option value="anand">Anand, Gujarat</option>
+                                    <option value="asansol">Asansol, West Bengal</option>
+                                    <option value="aurangabad">Aurangabad, Maharashtra</option>
+                                    <option value="bangalore">Bangalore, Karnataka</option>
+                                    <option value="bardhaman">Bardhaman, West Bengal</option>
+                                    <option value="bathinda">Bathinda, Punjab</option>
+                                    <option value="belgaum">Belgaum, Karnataka</option>
+                                    <option value="berhampur">Berhampur, Odisha</option>
+                                    <option value="bhagalpur">Bhagalpur, Bihar</option>
+                                    <option value="bhavnagar">Bhavnagar, Gujarat</option>
+                                    <option value="bhilai">Bhilai, Chhattisgarh</option>
+                                    <option value="bhopal">Bhopal, Madhya Pradesh</option>
+                                    <option value="bhubaneswar">Bhubaneswar, Odisha</option>
+                                    <option value="bikaner">Bikaner, Rajasthan</option>
+                                    <option value="bilaspur">Bilaspur, Chhattisgarh</option>
+                                    <option value="bokaro">Bokaro, Jharkhand</option>
+                                    <option value="calicut">Calicut, Kerala</option>
+                                    <option value="chandigarh">Chandigarh</option>
+                                    <option value="chennai">Chennai, Tamil Nadu</option>
+                                    <option value="coimbatore">Coimbatore, Tamil Nadu</option>
+                                    <option value="cuttack">Cuttack, Odisha</option>
+                                    <option value="dehradun">Dehradun, Uttarakhand</option>
+                                    <option value="delhi">Delhi</option>
+                                    <option value="dhanbad">Dhanbad, Jharkhand</option>
+                                    <option value="dibrugarh">Dibrugarh, Assam</option>
+                                    <option value="durgapur">Durgapur, West Bengal</option>
+                                    <option value="erode">Erode, Tamil Nadu</option>
+                                    <option value="faridabad">Faridabad, Haryana</option>
+                                    <option value="gangtok">Gangtok, Sikkim</option>
+                                    <option value="gaya">Gaya, Bihar</option>
+                                    <option value="ghaziabad">Ghaziabad, Uttar Pradesh</option>
+                                    <option value="gulbarga">Gulbarga, Karnataka</option>
+                                    <option value="guntur">Guntur, Andhra Pradesh</option>
+                                    <option value="gurgaon">Gurgaon, Haryana</option>
+                                    <option value="gurugram">Gurugram, Haryana</option>
+                                    <option value="guwahati">Guwahati, Assam</option>
+                                    <option value="gwalior">Gwalior, Madhya Pradesh</option>
+                                    <option value="hazaribagh">Hazaribagh, Jharkhand</option>
+                                    <option value="hisar">Hisar, Haryana</option>
+                                    <option value="howrah">Howrah, West Bengal</option>
+                                    <option value="hubli">Hubli, Karnataka</option>
+                                    <option value="hyderabad">Hyderabad, Telangana</option>
+                                    <option value="imphal">Imphal, Manipur</option>
+                                    <option value="indore">Indore, Madhya Pradesh</option>
+                                    <option value="itanagar">Itanagar, Arunachal Pradesh</option>
+                                    <option value="jabalpur">Jabalpur, Madhya Pradesh</option>
+                                    <option value="jalandhar">Jalandhar, Punjab</option>
+                                    <option value="jamnagar">Jamnagar, Gujarat</option>
+                                    <option value="jamshedpur">Jamshedpur, Jharkhand</option>
+                                    <option value="jaipur">Jaipur, Rajasthan</option>
+                                    <option value="jodhpur">Jodhpur, Rajasthan</option>
+                                    <option value="jorhat">Jorhat, Assam</option>
+                                    <option value="karnal">Karnal, Haryana</option>
+                                    <option value="karimnagar">Karimnagar, Telangana</option>
+                                    <option value="kohima">Kohima, Nagaland</option>
+                                    <option value="kolhapur">Kolhapur, Maharashtra</option>
+                                    <option value="kollam">Kollam, Kerala</option>
+                                    <option value="kochi">Kochi, Kerala</option>
+                                    <option value="korba">Korba, Chhattisgarh</option>
+                                    <option value="kolkata">Kolkata, West Bengal</option>
+                                    <option value="kanpur">Kanpur, Uttar Pradesh</option>
+                                    <option value="lucknow">Lucknow, Uttar Pradesh</option>
+                                    <option value="ludhiana">Ludhiana, Punjab</option>
+                                    <option value="madurai">Madurai, Tamil Nadu</option>
+                                    <option value="mangalore">Mangalore, Karnataka</option>
+                                    <option value="mohali">Mohali, Punjab</option>
+                                    <option value="mumbai">Mumbai, Maharashtra</option>
+                                    <option value="muzaffarpur">Muzaffarpur, Bihar</option>
+                                    <option value="mysore">Mysore, Karnataka</option>
+                                    <option value="nagpur">Nagpur, Maharashtra</option>
+                                    <option value="nashik">Nashik, Maharashtra</option>
+                                    <option value="nizamabad">Nizamabad, Telangana</option>
+                                    <option value="noida">Noida, Uttar Pradesh</option>
+                                    <option value="palakkad">Palakkad, Kerala</option>
+                                    <option value="panaji">Panaji, Goa</option>
+                                    <option value="panipat">Panipat, Haryana</option>
+                                    <option value="patiala">Patiala, Punjab</option>
+                                    <option value="patna">Patna, Bihar</option>
+                                    <option value="pune">Pune, Maharashtra</option>
+                                    <option value="purnia">Purnia, Bihar</option>
+                                    <option value="raipur">Raipur, Chhattisgarh</option>
+                                    <option value="rajkot">Rajkot, Gujarat</option>
+                                    <option value="ranchi">Ranchi, Jharkhand</option>
+                                    <option value="rohtak">Rohtak, Haryana</option>
+                                    <option value="rourkela">Rourkela, Odisha</option>
+                                    <option value="sambalpur">Sambalpur, Odisha</option>
+                                    <option value="salem">Salem, Tamil Nadu</option>
+                                    <option value="shillong">Shillong, Meghalaya</option>
+                                    <option value="shimla">Shimla, Himachal Pradesh</option>
+                                    <option value="silchar">Silchar, Assam</option>
+                                    <option value="siliguri">Siliguri, West Bengal</option>
+                                    <option value="solapur">Solapur, Maharashtra</option>
+                                    <option value="surat">Surat, Gujarat</option>
+                                    <option value="tezpur">Tezpur, Assam</option>
+                                    <option value="thane">Thane, Maharashtra</option>
+                                    <option value="thiruvananthapuram">Thiruvananthapuram, Kerala</option>
+                                    <option value="thrissur">Thrissur, Kerala</option>
+                                    <option value="tiruchirappalli">Tiruchirappalli, Tamil Nadu</option>
+                                    <option value="tiruppur">Tiruppur, Tamil Nadu</option>
+                                    <option value="udaipur">Udaipur, Rajasthan</option>
+                                    <option value="ujjain">Ujjain, Madhya Pradesh</option>
+                                    <option value="vadodara">Vadodara, Gujarat</option>
+                                    <option value="varanasi">Varanasi, Uttar Pradesh</option>
+                                    <option value="vellore">Vellore, Tamil Nadu</option>
+                                    <option value="vijayawada">Vijayawada, Andhra Pradesh</option>
+                                    <option value="visakhapatnam">Visakhapatnam, Andhra Pradesh</option>
+                                    <option value="warangal">Warangal, Telangana</option>
+                                </select>
+            </div>
+        </div>
+
+
+
+        <!-- Regional Festival Dashboard -->
+        <!-- <style>
+        .festival-dashboard {
+            background: linear-gradient(120deg, #000000 0%, #c1a8fb 50%, #ffd47a 100%);
+            border-radius: 2.5rem;
+            box-shadow: 0 8px 40px rgba(143,95,255,0.18);
+            padding: 3rem 4vw 3rem 4vw;
+            margin: 3rem auto;
+            position: relative;
+            overflow: hidden;
+            max-width: 98vw;
+            margin-left: 1vw;
+            margin-right: 1vw;
+            transition: box-shadow 0.3s;
+            animation: dashboardBgMove 12s ease-in-out infinite alternate;
+        }
+        @keyframes dashboardBgMove {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+        .festival-dashboard h2 {
+            color: #fff;
+            font-size: 2.7rem;
+            font-weight: 900;
+            letter-spacing: 2px;
+            margin-bottom: 2.5rem;
+            text-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            background: linear-gradient(90deg, #ffd47a 0%, #4f3292 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .festival-controls {
+            display: flex;
+            gap: 2.5rem;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .festival-controls .control-group {
+            background: rgba(255,255,255,0.25);
+            border-radius: 1.2rem;
+            padding: 1.2rem 2.2rem;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            box-shadow: 0 2px 16px rgba(143,95,255,0.10);
+            transition: background 0.2s, box-shadow 0.2s;
+            backdrop-filter: blur(8px);
+        }
+        .festival-controls .control-group:hover {
+            background: rgba(255,255,255,0.38);
+            box-shadow: 0 4px 24px rgba(143,95,255,0.13);
+        }
+        .festival-controls label {
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.15rem;
+            letter-spacing: 0.5px;
+        }
+        .festival-controls select {
+            border-radius: 0.8rem;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            font-size: 1.08rem;
+            background: #fff;
+            color: #6d3be7;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(143,95,255,0.09);
+            outline: none;
+            transition: box-shadow 0.2s, background 0.2s;
+        }
+        .festival-controls select:focus {
+            box-shadow: 0 0 0 2px #ffd47a;
+            background: #f3e6ff;
+        }
+        .festival-categories {
+            margin-bottom: 2.5rem;
+        }
+        .festival-categories h3 {
+            color: #fff;
+            font-size: 1.4rem;
+            font-weight: 900;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            letter-spacing: 0.5px;
+        }
+        .categories-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 2rem;
+        }
+        .category-card {
+            background: rgba(255,255,255,0.35);
+            border-radius: 1.3rem;
+            box-shadow: 0 4px 32px rgba(143,95,255,0.18);
+            padding: 1.7rem 1.3rem;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            position: relative;
+            overflow: hidden;
+            border-top: 6px solid #ffd47a;
+            transition: transform 0.3s, box-shadow 0.3s, border-top 0.3s, background 0.3s;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.7s;
+        }
+        .category-card:hover {
+            transform: translateY(-10px) scale(1.05) rotate(-1deg);
+            box-shadow: 0 16px 48px 0 #ffd47a55, 0 2px 16px #8f5fff33;
+            border-top: 6px solid #8f5fff;
+            background: rgba(255,255,255,0.55);
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+        .category-count {
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #ffd47a;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 8px #8f5fff33;
+        }
+        .category-festivals {
+            color: #5e4a8c;
+            font-size: 1.05rem;
+            opacity: 0.92;
+            margin-top: 0.5rem;
+        }
+        .regional-festivals-section {
+            margin-bottom: 2.5rem;
+        }
+        .regional-festivals-section h3 {
+            color: #fff;
+            font-size: 1.25rem;
+            font-weight: 900;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+        }
+        .festivals-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+            gap: 2rem;
+        }
+        .festival-card {
+            background: rgba(255,255,255,0.38);
+            border-radius: 1.3rem;
+            box-shadow: 0 4px 32px rgba(143,95,255,0.18);
+            padding: 1.7rem 1.3rem;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            border-left: 7px solid #ffd47a;
+            transition: transform 0.3s, box-shadow 0.3s, border-left 0.3s, background 0.3s;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.7s;
+        }
+        .festival-card:hover {
+            transform: translateY(-10px) scale(1.05) rotate(1deg);
+            box-shadow: 0 16px 48px 0 #ffd47a55, 0 2px 16px #8f5fff33;
+            border-left: 7px solid #8f5fff;
+            background: rgba(255,255,255,0.65);
+        }
+        .festival-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.7rem;
+        }
+        .festival-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #2d1e5f;
+        }
+        .festival-date {
+            font-size: 1.05rem;
+            color: #8f5fff;
+            font-weight: 700;
+        }
+        .festival-badges {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.7rem;
+        }
+        .badge {
+            font-size: 0.85rem;
+            font-weight: 700;
+            border-radius: 1rem;
+            padding: 0.2rem 0.8rem;
+            display: inline-block;
+            box-shadow: 0 2px 8px #ffd47a33;
+        }
+        .badge.regional { background: linear-gradient(90deg, #a18fff 0%, #8f5fff 100%); color: #fff; }
+        .badge.urgent { background: linear-gradient(90deg, #ff7a7a 0%, #ffb347 100%); color: #fff; }
+        .badge.cultural { background: linear-gradient(90deg, #ffd47a 0%, #8f5fff 100%); color: #fff; }
+        .badge.national { background: linear-gradient(90deg, #8f5fff 0%, #ffd47a 100%); color: #fff; }
+        .badge.harvest { background: linear-gradient(90deg, #7affb3 0%, #ffd47a 100%); color: #fff; }
+        .badge.religious { background: linear-gradient(90deg, #ffb347 0%, #8f5fff 100%); color: #fff; }
+        .festival-desc {
+            color: #5e4a8c;
+            font-size: 1.05rem;
+            margin-bottom: 0.7rem;
+            opacity: 0.95;
+        }
+        .festival-days-away {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #ff7a7a;
+            margin-bottom: 0.5rem;
+        }
+        .festival-shopping {
+            color: #8f5fff;
+            font-size: 1.05rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .insights-btn {
+            background: linear-gradient(90deg, #ffd47a 0%, #8f5fff 100%);
+            color: #fff;
+            border: none;
+            border-radius: 1.2rem;
+            padding: 0.7rem 1.5rem;
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-top: 0.7rem;
+            cursor: pointer;
+            box-shadow: 0 2px 12px rgba(143,95,255,0.10);
+            transition: background 0.2s, transform 0.1s;
+        }
+        .insights-btn:hover {
+            background: linear-gradient(90deg, #8f5fff 0%, #ffd47a 100%);
+            transform: translateY(-2px) scale(1.04);
+            color: #fff;
+        }
+        @media (max-width: 900px) {
+            .festival-dashboard { padding: 1.2rem 1rem; }
+            .categories-grid, .festivals-list { grid-template-columns: 1fr; }
+        } -->
+        <!-- </style> -->
+        <div class="festival-dashboard" id="festival-dashboard">
+            <h2><i class="fas fa-chart-line"></i> Regional Festival Dashboard</h2>
+            <!-- Festival Controls -->
+            <div class="festival-controls">
+                <div class="control-group">
+                    <label for="festivalSortBy">Sort Festivals By:</label>
+                    <select id="festivalSortBy" onchange="loadRegionalFestivals()">
+                        <option value="days_until">Days Until Festival</option>
+                        <option value="name">Festival Name</option>
+                        <option value="category">Category</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="festivalFilter">Filter By Category:</label>
+                    <select id="festivalFilter" onchange="filterFestivals()">
+                        <option value="all">All Categories</option>
+                        <option value="religious">Religious</option>
+                        <option value="cultural">Cultural</option>
+                        <option value="harvest">Harvest</option>
+                        <option value="national">National</option>
+                        <option value="regional">Regional</option>
+                        <option value="modern">Modern</option>
+                        <option value="seasonal">Seasonal</option>
+                    </select>
+                </div>
+            </div>
+            <!-- Festival Categories Overview -->
+            <div class="festival-categories">
+                <h3><i class="fas fa-tags"></i> Festival Categories</h3>
+                <div id="festivalCategories" class="categories-grid">
+                    <!-- Example category card -->
+                    <!--
+                    <div class="category-card">
+                        <span class="category-icon">🎉</span>
+                        <span class="category-title">Religious</span>
+                        <span class="category-count">19</span>
+                        <span class="category-badge">1 urgent</span>
+                        <span class="category-desc">Bonalu, Krishna Janmashtami, Ker Puja ...</span>
+                    </div>
+                    -->
+                </div>
+            </div>
+            <!-- Regional Festivals List -->
+            <div class="regional-festivals-section">
+                <h3><i class="fas fa-map-marker-alt"></i> Regional Festivals</h3>
+                <div id="regionalFestivalsList" class="festivals-list">
+                    <!-- Example festival card -->
+                    <!--
+                    <div class="festival-card">
+                        <div class="festival-header">
+                            <span class="festival-title">Ganesh Chaturthi</span>
+                            <span class="festival-date">27 Aug 2025</span>
+                        </div>
+                        <div class="festival-badges">
+                            <span class="badge regional">Regional</span>
+                            <span class="badge religious">Religious</span>
+                        </div>
+                        <div class="festival-desc">Birth celebration of Lord Ganesha, Maharashtra's biggest festival</div>
+                        <div class="festival-days-away">42 days away</div>
+                        <div class="festival-shopping"><i class="fas fa-shopping-cart"></i> Shopping period: 15 days</div>
+                        <button class="insights-btn">INSIGHTS</button>
+                    </div>
+                    -->
+                </div>
+            </div>
+            <!-- Festival Insights Panel -->
+            <div class="festival-insights-panel" id="festivalInsightsPanel" style="display: none;">
+                <h3><i class="fas fa-lightbulb"></i> Festival Insights</h3>
+                <div id="festivalInsights" class="insights-content"></div>
+            </div>
+        </div>
+
+        <!-- Shopkeeper Dashboard Section (Only visible when logged in) -->
+        {% if session.get('shopkeeper_logged_in') %}
+        <div id="shopkeeperDashboard" class="shopkeeper-dashboard" style="display: none;">
+            <h2><i class="fas fa-store"></i> My Shop Dashboard</h2>
+            
+            <!-- Shopkeeper Stats -->
+            <div class="shopkeeper-stats">
+                <div class="stat-card">
+                    <h3>Total Products</h3>
+                    <div class="value" id="shopkeeperTotalProducts">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total Sales Value</h3>
+                    <div class="value" id="shopkeeperTotalSalesValue">₹-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Items Sold</h3>
+                    <div class="value" id="shopkeeperTotalItemsSold">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Current Inventory</h3>
+                    <div class="value" id="shopkeeperCurrentInventory">-</div>
+                </div>
+            </div>
+
+            <!-- Shopkeeper Tabs -->
+            <div class="shopkeeper-tabs">
+                <button class="tab-button active" onclick="showShopkeeperTab('add-product')">
+                    <i class="fas fa-plus"></i> Add Product
+                </button>
+                <button class="tab-button" onclick="showShopkeeperTab('record-event')">
+                    <i class="fas fa-edit"></i> Record Event
+                </button>
+                <button class="tab-button" onclick="showShopkeeperTab('products')">
+                    <i class="fas fa-boxes"></i> My Products
+                </button>
+                <button class="tab-button" onclick="showShopkeeperTab('history')">
+                    <i class="fas fa-history"></i> Sales History
+                </button>
+            </div>
+
+            <!-- Add Product Tab -->
+            <div id="add-product" class="shopkeeper-tab-content active">
+                <div class="form-section">
+                    <h3><i class="fas fa-plus-circle"></i> Add New Product</h3>
+                    <form id="addProductForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="sku">SKU (Stock Keeping Unit)</label>
+                                <input type="text" id="sku" name="sku" required placeholder="e.g., PROD001">
+                            </div>
+                            <div class="form-group">
+                                <label for="productName">Product Name</label>
+                                <input type="text" id="productName" name="product_name" required placeholder="e.g., Cotton T-Shirt">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="category">Category</label>
+                                <select id="category" name="category" required>
+                                    <option value="">Select Category</option>
+                                    <option value="clothing">Clothing</option>
+                                    <option value="electronics">Electronics</option>
+                                    <option value="home_decor">Home Decor</option>
+                                    <option value="beauty">Beauty</option>
+                                    <option value="books">Books</option>
+                                    <option value="sports">Sports</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="initialQuantity">Initial Quantity</label>
+                                <input type="number" id="initialQuantity" name="initial_quantity" required min="1" placeholder="e.g., 100">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-plus"></i> Add Product
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Record Event Tab -->
+            <div id="record-event" class="shopkeeper-tab-content">
+                <div class="form-section">
+                    <h3><i class="fas fa-edit"></i> Record Sale/Restock Event</h3>
+                    <form id="recordEventForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="eventSku">Product SKU</label>
+                                <input type="text" id="eventSku" name="sku" required placeholder="e.g., PROD001">
+                            </div>
+                            <div class="form-group">
+                                <label for="eventType">Event Type</label>
+                                <select id="eventType" name="event_type" required>
+                                    <option value="">Select Event Type</option>
+                                    <option value="sale">Sale</option>
+                                    <option value="restock">Restock</option>
+                                    <option value="adjustment">Adjustment</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="quantityChanged">Quantity Changed</label>
+                                <input type="number" id="quantityChanged" name="quantity_changed" required placeholder="e.g., -5 for sale, +10 for restock">
+                            </div>
+                            <div class="form-group">
+                                <label for="pricePerUnit">Price per Unit (₹)</label>
+                                <input type="number" id="pricePerUnit" name="price_per_unit" step="0.01" placeholder="e.g., 299.99">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="notes">Notes</label>
+                                <input type="text" id="notes" name="notes" placeholder="Optional notes about this event">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-save"></i> Record Event
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Products Tab -->
+            <div id="products" class="shopkeeper-tab-content">
+                <div class="form-section">
+                    <h3><i class="fas fa-boxes"></i> My Products</h3>
+                    <div id="productsList">
+                        <div class="no-data">Loading products...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div id="history" class="shopkeeper-tab-content">
+                <div class="form-section">
+                    <h3><i class="fas fa-history"></i> Sales History</h3>
+                    
+                    <!-- Filters -->
+                    <div class="filters">
+                        <div class="filter-group">
+                            <label for="filterSku">Filter by SKU</label>
+                            <input type="text" id="filterSku" placeholder="Enter SKU to filter">
+                        </div>
+                        <div class="filter-group">
+                            <label for="startDate">Start Date</label>
+                            <input type="date" id="startDate">
+                        </div>
+                        <div class="filter-group">
+                            <label for="endDate">End Date</label>
+                            <input type="date" id="endDate">
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <button class="btn-primary" onclick="loadHistory()">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- History Table -->
+                    <div id="historyList">
+                        <div class="no-data">Loading history...</div>
+                    </div>
+                    
+                    <!-- Export Section -->
+                    <div class="export-section">
+                        <h4><i class="fas fa-download"></i> Export Data</h4>
+                        <p>Export your sales history as a CSV file for further analysis.</p>
+                        <button class="btn-secondary" onclick="exportHistory()">
+                            <i class="fas fa-file-csv"></i> Export to CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html> 

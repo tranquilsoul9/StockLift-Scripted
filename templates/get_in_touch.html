@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Get in Touch - Dead Stock Intelligence</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body {
+            background: linear-gradient(120deg, #f4f0ff 0%, #e0e7ff 100%);
+            min-height: 100vh;
+            font-family: 'Inter', Arial, sans-serif;
+        }
+        .get-in-touch-container {
+            max-width: 1000px;
+            margin: 60px auto;
+            padding: 32px 18px;
+            background: #fff;
+            border-radius: 2rem;
+            box-shadow: 0 8px 32px rgba(143,95,255,0.10);
+            height: 700px;
+        }
+        .get-in-touch-title {
+            text-align: center;
+            font-size: 2.1rem;
+            font-weight: 900;
+            color: #4f2cc9;
+            margin-bottom: 2.5rem;
+        }
+        .contact-cards-row {
+            display: flex;
+            gap: 2.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .contact-card {
+            background: #f8f9fa;
+            border-radius: 1.2rem;
+            box-shadow: 0 4px 24px rgba(143,95,255,0.08);
+            padding: 2rem 1.5rem 1.5rem 1.5rem;
+            min-width: 250px;
+            max-width: 350px;
+            flex: 1 1 220px;
+            display: flex;
+            flex-direction: column;
+            text-align: left;
+            border: 1.5px solid #e6dbff;
+            transition: box-shadow 0.2s, transform 0.2s;
+            height: 400px;
+        }
+        .contact-card:hover {
+            box-shadow: 0 8px 32px rgba(143,95,255,0.13);
+            transform: translateY(-4px) scale(1.03);
+        }
+        .contact-photo {
+            width: 110px;
+            height: 110px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin-bottom: 1.1rem;
+            border: 3px solid #8f5fff;
+        }
+        .contact-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #2d1e5f;
+            margin-bottom: 0.4rem;
+        }
+        .contact-role {
+            font-size: 1rem;
+            color: #8f5fff;
+            margin-bottom: 0.7rem;
+        }
+        .contact-details {
+            font-size: 0.97rem;
+            color: #5e4a8c;
+            margin-bottom: 0.5rem;
+        }
+        .contact-email {
+            color: #4f2cc9;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .contact-email:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="get-in-touch-container">
+        <a href="/" class="back-dashboard-btn">← Back to Dashboard</a>
+        <div class="get-in-touch-title">Get in Touch</div>
+        <div class="contact-cards-row">
+            <div class="contact-card">
+                <img src="/static/impimages/contact1.jpg" alt="Person 1" class="contact-photo">
+                <div class="contact-name">Dimple Bhondekar</div>
+                <div class="contact-role">Student</div>
+                <div class="contact-specialization">Specialization: IT (Information Technology)</div>
+                <div class="contact-college">College: Indian Institute of Information Technology, Allahabad</div>
+                <a href="mailto:iit2022022@iiita.ac.in" class="contact-email">Email: iit2022022@iiita.ac.in</a>
+                <a href="https://www.linkedin.com/in/dimplebhondekar-146b81256/" class="contact-linkedin" target="_blank" style="display:inline-block;margin-top:0.3rem;color:#0a66c2;font-weight:600;"><i class="fab fa-linkedin"></i> LinkedIn</a>
+            </div>
+            <div class="contact-card">
+                <img src="/static/impimages/contact2.jpg" alt="Person 2" class="contact-photo">
+                <div class="contact-name">Shreya Singh</div>
+                <div class="contact-role">Student</div>
+                <div class="contact-specialization">Specialization: CS(Computer Science)</div>
+                <div class="contact-college">College: Thapar Institute of Technology, Patiala</div>
+                <a href="mailto:ssingh29_be22@thapar.edu" class="contact-email">Email: ssingh29_be22@thapar.edu</a>
+                <a href="https://www.linkedin.com/in/shreyasingh1904/" class="contact-linkedin" target="_blank" style="display:inline-block;margin-top:0.3rem;color:#0a66c2;font-weight:600;"><i class="fab fa-linkedin"></i> LinkedIn</a>
+            </div>
+        </div>
+    </div>
+    <style>
+    .back-dashboard-btn {
+        display: inline-block;
+        margin-bottom: 1.2rem;
+        background: linear-gradient(90deg, #8f5fff 0%, #6d3be7 100%);
+        color: #fff;
+        border: none;
+        border-radius: 0.8rem;
+        padding: 0.6rem 1.4rem;
+        font-size: 1rem;
+        font-weight: 600;
+        text-decoration: none;
+        box-shadow: 0 2px 12px rgba(143,95,255,0.10);
+        transition: background 0.2s, color 0.2s;
+    }
+    .back-dashboard-btn:hover {
+        background: #6d3be7;
+        color: #fff;
+        text-decoration: underline;
+    }
+    </style>
+</body>
+</html> 

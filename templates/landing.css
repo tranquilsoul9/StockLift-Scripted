@@ -1,0 +1,10 @@
+.regional-badge.national {
+    background: linear-gradient(90deg, #ff9800 0%, #ffb347 100%);
+    color: #fff;
+    border-radius: 1rem;
+    padding: 0.2rem 0.8rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: inline-block;
+    margin-left: 0.5rem;
+} 
