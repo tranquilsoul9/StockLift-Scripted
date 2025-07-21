@@ -367,6 +367,24 @@ Open your browser and navigate to `http://localhost:5000`
 
 ---
 
+## Major Dependencies & Licenses
+
+| Library/Tool         | Version    | License                        | Official Link                                              |
+|---------------------|------------|-------------------------------|------------------------------------------------------------|
+| Flask               | 2.3.0      | BSD-3-Clause                   | https://palletsprojects.com/p/flask/                       |
+| pandas              | 2.0.0      | BSD-3-Clause                   | https://pandas.pydata.org/                                 |
+| numpy               | 1.24.0     | BSD-3-Clause                   | https://numpy.org/                                         |
+| scikit-learn        | 1.3.0      | BSD-3-Clause                   | https://scikit-learn.org/                                  |
+| xgboost             | 1.7.0      | Apache License 2.0             | https://xgboost.readthedocs.io/                            |
+| tensorflow          | 2.13.0     | Apache License 2.0             | https://www.tensorflow.org/                                |
+| geopy               | 2.3.0      | MIT License                    | https://geopy.readthedocs.io/                              |
+| U^2-Net             | -          | GPL-3.0                        | https://github.com/xuebinqin/U-2-Net                       |
+| GenAI (IBM)         | -          | Apache License 2.0             | https://github.com/IBM/genai                               |
+| OpenAI API (GPT)    | -          | Proprietary (OpenAI ToS)        | https://openai.com/api/                                    |
+| YOLOv5              | -          | GPL-3.0                        | https://github.com/ultralytics/yolov5                      |
+
+---
+
 ## Prerequisites
 
 - Python 3.8 or higher
