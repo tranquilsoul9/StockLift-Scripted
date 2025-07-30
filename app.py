@@ -677,7 +677,7 @@ import os
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 import io
-from models.simple_bg_removal import remove_background_simple
+from models.birefnet_bg_removal import remove_background_birefnet
 import numpy as np
 import cv2
 import google.generativeai as genai
@@ -729,8 +729,8 @@ def background_removal_real():
         # Open image
         img = Image.open(input_path).convert('RGB')
         
-        # Use simple background removal with rembg
-        result_img = remove_background_simple(img)
+        # Use BiRefNet for superior background removal
+        result_img = remove_background_birefnet(img, model_name='birefnet-general', advanced=True)
         
         # Save processed image
         processed_filename = 'bgremoved_' + filename.rsplit('.', 1)[0] + '.png'
@@ -739,7 +739,7 @@ def background_removal_real():
         
         return jsonify({
             'processed_url': f'/processed/{processed_filename}',
-            'message': 'Background removed successfully'
+            'message': 'Background removed successfully using BiRefNet'
         })
         
     except Exception as e:
