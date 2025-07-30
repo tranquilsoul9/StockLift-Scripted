@@ -669,15 +669,13 @@ def download_file(filename):
 
 
 
-
-
 # -------------------------------------Photogenix--------------------------------------
 from flask import Flask, render_template, request, send_from_directory, jsonify
 import os
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 import io
-from models.birefnet_bg_removal import remove_background_birefnet
+from models.birefnet_bg_removal import remove_background_birefnet, run_birefnet
 import numpy as np
 import cv2
 import google.generativeai as genai
@@ -777,8 +775,8 @@ def replace_background():
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(input_path)
     img = Image.open(input_path).convert('RGBA')
-    # Run U2Net to get mask
-    mask = run_u2net(img)
+    # Run BiRefNet to get mask
+    mask = run_birefnet(img)
     mask = mask.resize(img.size, Image.BILINEAR).convert('L')
     # Load selected background
     bg_path = os.path.join('static', 'backgrounds', bg_name)
@@ -895,8 +893,8 @@ def make_professional():
     file.save(input_path)
     # Open image
     img = Image.open(input_path).convert('RGBA')
-    # Run U2Net to get mask
-    mask = run_u2net(img)
+    # Run BiRefNet to get mask
+    mask = run_birefnet(img)
     mask = mask.resize(img.size, Image.BILINEAR).convert('L')
     # Load background
     bg_path = pick_best_background(img)
