@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Festival Campaign Generator</title>
+    <title>Custom Campaign Generator</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <style>
@@ -214,11 +214,19 @@
             font-size: 1rem;
             font-weight: 600;
         }
-        .campaign-form, .extra-inputs {
+        .campaign-form {
             background: transparent;
             box-shadow: none;
             padding: 0;
             margin-bottom: 0;
+            display: flex; /* Added for side-by-side layout */
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            gap: 1.3rem; /* Space between form rows */
+        }
+        .campaign-form .form-group { /* New class for grouping label+input */
+            flex: 1 1 calc(50% - 0.65rem); /* Two columns, accounting for gap */
+            display: flex;
+            flex-direction: column;
         }
         .campaign-form label, .extra-input-group label {
             color: #bfc9db;
@@ -232,11 +240,12 @@
             border: none;
             border-radius: 0.7rem;
             font-size: 1.08rem;
-            margin-bottom: 1.3rem;
+            margin-bottom: 0; /* Removed margin-bottom from here, now handled by gap on form-group */
             box-shadow: 0 1px 4px rgba(20,20,40,0.08);
             outline: none;
             transition: box-shadow 0.2s, border 0.2s;
             padding: 0.9rem 1.1rem;
+            width: 100%; /* Ensure inputs take full width of their group */
         }
         .campaign-form input:focus, .campaign-form select:focus, .extra-input-group input:focus {
             box-shadow: 0 0 0 2px #8f5fff;
@@ -250,7 +259,7 @@
             display: none;
         }
         .campaign-form select {
-            background-image: url('data:image/svg+xml;utf8,<svg fill="%238f5fff" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7.293 7.293a1 1 0 011.414 0L10 8.586l1.293-1.293a1 1 0 111.414 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414z"/></svg>');
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%238f5fff" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7.293 7.293a1 1 0 011.414 0L10 8.586l1.293-1.293a1 1 111.414 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414z"/></svg>');
             background-repeat: no-repeat;
             background-position: right 1rem center;
             background-size: 1.2rem;
@@ -268,6 +277,7 @@
             transition: background 0.2s, transform 0.1s;
             margin-top: 0.5rem;
             width: 100%;
+            flex: 1 1 100%; /* Make button take full width */
         }
         .campaign-form button:hover, .action-btn:hover {
             background: linear-gradient(90deg, #3b82f6 0%, #8f5fff 100%);
@@ -301,7 +311,7 @@
             box-shadow: 0 2px 12px rgba(143,95,255,0.10);
         }
         .campaign-message, .campaign-offer {
-            color: #2d1e5f;
+            color: #2d1e5f; /* Changed to a darker color for readability on the light gradient background */
             font-size: 1.05rem;
             margin-bottom: 0.7rem;
         }
@@ -381,6 +391,21 @@
             background: #8f5fff;
             color: #fff;
         }
+        #customCampaignTypeContainer { /* New style for the custom input container */
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            flex: 1 1 calc(50% - 0.65rem); /* Matches form-group width */
+        }
+        /* Responsive adjustments for form groups */
+        @media (max-width: 768px) {
+            .campaign-form .form-group {
+                flex: 1 1 100%; /* Stack vertically on smaller screens */
+            }
+            #customCampaignTypeContainer {
+                flex: 1 1 100%; /* Also stack on smaller screens */
+            }
+        }
+
         @media (max-width: 900px) {
             .how-it-works, .tips-list, .festivals-grid {
                 flex-direction: column;
@@ -409,13 +434,13 @@
         <a href="/" class="back-btn">&larr; Back to Home</a>
         <div class="campaign-header">
             <h1>Festival Campaign Generator</h1>
-            <p>Instantly create beautiful, effective festival marketing campaigns for your shop. Select a festival, region, and offer type—then download or share your ready-to-use campaign!</p>
+            <p>Instantly create beautiful, effective marketing campaigns for your shop. Enter occasion details and offer type—then download or share your ready-to-use campaign!</p>
         </div>
         <div class="how-it-works">
             <div class="how-step">
                 <i class="fa-solid fa-list-check"></i>
-                <h4>1. Choose Festival & Region</h4>
-                <p>Select the festival, your region, and the type of campaign you want to run.</p>
+                <h4>1. Enter Details</h4>
+                <p>Provide the occasion, campaign type, and dates for your campaign.</p>
             </div>
             <div class="how-step">
                 <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -429,26 +454,17 @@
             </div>
         </div>
         <div class="tips-section">
-            <h3><i class="fa-solid fa-lightbulb"></i> Tips for a Successful Festival Campaign</h3>
+            <h3><i class="fa-solid fa-lightbulb"></i> Tips for a Successful Campaign</h3>
             <div class="tips-list">
                 <div class="tip-item"><i class="fa-solid fa-bullhorn"></i><span>Promote your campaign early to build excitement.</span></div>
                 <div class="tip-item"><i class="fa-solid fa-percent"></i><span>Use attractive discounts or combos to draw attention.</span></div>
                 <div class="tip-item"><i class="fa-solid fa-image"></i><span>Share your campaign image on WhatsApp, Facebook, and in your shop.</span></div>
-                <div class="tip-item"><i class="fa-solid fa-handshake-angle"></i><span>Collaborate with nearby shops for joint festival offers.</span></div>
+                <div class="tip-item"><i class="fa-solid fa-handshake-angle"></i><span>Collaborate with nearby shops for joint offers.</span></div>
             </div>
         </div>
-        <div class="supported-festivals-section">
-            <h3><i class="fa-solid fa-calendar-days"></i> Supported Festivals</h3>
-            <div class="festivals-grid">
-                <div class="festival-card"><i class="fa-solid fa-fire"></i><span>Diwali</span></div>
-                <div class="festival-card"><i class="fa-solid fa-droplet"></i><span>Holi</span></div>
-                <div class="festival-card"><i class="fa-solid fa-moon"></i><span>Eid</span></div>
-                <div class="festival-card"><i class="fa-solid fa-tree"></i><span>Christmas</span></div>
-                <div class="festival-card"><i class="fa-solid fa-wheat-awn"></i><span>Pongal</span></div>
-                <div class="festival-card"><i class="fa-solid fa-person-dress"></i><span>Navratri</span></div>
-                <div class="festival-card"><i class="fa-solid fa-ribbon"></i><span>Raksha Bandhan</span></div>                <div class="festival-card"><i class="fa-solid fa-wheat-awn-circle-exclamation"></i><span>Baisakhi</span></div>
-            </div>
-        </div>
+        
+        <!-- The 'Supported Festivals' section has been removed from here -->
+
         <!-- Extra Inputs for Shop Info -->
         <form id="extraInputsForm" class="extra-inputs" onsubmit="return false;">
             <div class="extra-input-group">
@@ -478,37 +494,39 @@
         </form>
         <!-- Existing form and campaign generator below -->
         <form class="campaign-form" id="campaignForm" onsubmit="generateCampaign(event)">
-            <label for="festival">Select Festival</label>
-            <select id="festival" required>
-                <option value="">Choose a festival</option>
-                <option value="Diwali">Diwali</option>
-                <option value="Holi">Holi</option>
-                <option value="Eid">Eid</option>
-                <option value="Christmas">Christmas</option>
-                <option value="Pongal">Pongal</option>
-                <option value="Navratri">Navratri</option>
-                <option value="Raksha Bandhan">Raksha Bandhan</option>
-                <option value="Onam">Onam</option>
-                <option value="Baisakhi">Baisakhi</option>
-            </select>
-            <label for="region">Select Region</label>
-            <select id="region" required>
-                <option value="">Choose a region</option>
-                <option value="North India">North India</option>
-                <option value="South India">South India</option>
-                <option value="East India">East India</option>
-                <option value="West India">West India</option>
-                <option value="Pan India">Pan India</option>
-            </select>
-            <label for="type">Campaign Type</label>
-            <select id="type" required>
-                <option value="">Choose type</option>
-                <option value="Discount Offer">Discount Offer</option>
-                <option value="Buy 1 Get 1">Buy 1 Get 1</option>
-                <option value="Free Gift">Free Gift</option>
-                <option value="Flash Sale">Flash Sale</option>
-                <option value="Festival Combo">Festival Combo</option>
-            </select>
+            <div class="form-group">
+                <label for="customFestival">Occasion / Festival</label>
+                <input type="text" id="customFestival" placeholder="e.g., Diwali, Anniversary Sale, Summer Clearance" required>
+            </div>
+
+            <div class="form-group">
+                <label for="saleType">Campaign Type</label>
+                <select id="saleType" required>
+                    <option value="">Choose type</option>
+                    <option value="Discount Offer">Discount Offer</option>
+                    <option value="Buy 1 Get 1">Buy 1 Get 1</option>
+                    <option value="Free Gift">Free Gift</option>
+                    <option value="Flash Sale">Flash Sale</option>
+                    <option value="Festival Combo">Festival Combo</option>
+                    <option value="Custom Offer">Custom Offer (describe below)</option>
+                </select>
+            </div>
+
+            <div id="customCampaignTypeContainer" class="form-group">
+                <label for="customCampaignTypeInput">Custom Campaign Type Description</label>
+                <input type="text" id="customCampaignTypeInput" placeholder="e.g., End of Season Sale, Grand Re-opening">
+            </div>
+
+            <div class="form-group">
+                <label for="startDate">Start Date</label>
+                <input type="date" id="startDate" required>
+            </div>
+
+            <div class="form-group">
+                <label for="endDate">End Date</label>
+                <input type="date" id="endDate" required>
+            </div>
+
             <button type="submit">Generate Campaign</button>
         </form>
         <div class="generated-campaign" id="generatedCampaign" style="display:none;">
@@ -527,34 +545,39 @@
         </div>
     </div>
     <script>
-        // Festival background images (Unsplash links or use your own static images)
-        const festivalBackgrounds = {
-            'Diwali': 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80', // diyas
-            'Holi': 'https://images.unsplash.com/photo-1508672019048-805c876b67e2?auto=format&fit=crop&w=800&q=80', // colors
-            'Eid': 'https://images.unsplash.com/photo-1464983953574-0892a716854b?auto=format&fit=crop&w=800&q=80', // moon
-            'Christmas': 'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=800&q=80', // snow/tree
-            'Pongal': 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=800&q=80', // harvest
-            'Navratri': 'https://images.unsplash.com/photo-1502086223501-7ea6ecd79368?auto=format&fit=crop&w=800&q=80', // garba
-            'Raksha Bandhan': 'https://images.unsplash.com/photo-1504196606672-aef5c9cefc92?auto=format&fit=crop&w=800&q=80', // rakhi
-            'Onam': 'https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=800&q=80', // pookalam
-            'Baisakhi': 'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=800&q=80', // wheat
-        };
-        const festivalEmojis = {
-            'Diwali': '🪔',
-            'Holi': '🎨',
-            'Eid': '🌙',
-            'Christmas': '🎄',
-            'Pongal': '🌾',
-            'Navratri': '💃',
-            'Raksha Bandhan': '🎁',
-            'Onam': '🌸',
-            'Baisakhi': '🌾',
-        };
-        function generateCampaign(event) {
+        // Removed festivalBackgrounds and festivalEmojis as they are no longer directly used for dynamic background/emoji based on fixed festival list.
+        // If you want dynamic backgrounds, you'll need a new mechanism (e.g., image generation or more flexible mapping).
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const saleTypeDropdown = document.getElementById('saleType');
+            const customCampaignTypeContainer = document.getElementById('customCampaignTypeContainer');
+            const customCampaignTypeInput = document.getElementById('customCampaignTypeInput');
+
+            saleTypeDropdown.addEventListener('change', () => {
+                if (saleTypeDropdown.value === 'Custom Offer') {
+                    customCampaignTypeContainer.style.display = 'flex'; // Show the container
+                    customCampaignTypeInput.setAttribute('required', 'true');
+                } else {
+                    customCampaignTypeContainer.style.display = 'none'; // Hide the container
+                    customCampaignTypeInput.removeAttribute('required');
+                    customCampaignTypeInput.value = ''; // Clear the value when hidden
+                }
+            });
+        });
+
+
+        async function generateCampaign(event) {
             event.preventDefault();
-            const festival = document.getElementById('festival').value;
-            const region = document.getElementById('region').value;
-            const type = document.getElementById('type').value;
+
+            const customFestival = document.getElementById('customFestival').value;
+            const saleTypeDropdownValue = document.getElementById('saleType').value;
+            const customCampaignTypeInputValue = document.getElementById('customCampaignTypeInput').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            // Determine the actual campaign_type to send to backend
+            const campaignTypeToSend = (saleTypeDropdownValue === 'Custom Offer') ? customCampaignTypeInputValue : saleTypeDropdownValue;
+
             // Extra fields
             const shopName = document.getElementById('shopName').value;
             const shopAddress = document.getElementById('shopAddress').value;
@@ -562,69 +585,93 @@
             const validTill = document.getElementById('validTill').value;
             const shopInsta = document.getElementById('shopInsta').value;
             const shopFB = document.getElementById('shopFB').value;
-            // Campaign content
-            let banner = `${festivalEmojis[festival] || '🎉'} ${festival} Mega Sale! ${festivalEmojis[festival] || '🎉'}`;
-            let message = `Celebrate ${festival} with exclusive offers for our customers in ${region}!`;
-            let offer = '';
-            switch(type) {
-                case 'Discount Offer':
-                    offer = 'Flat 25% OFF on all products. Limited time only!';
-                    break;
-                case 'Buy 1 Get 1':
-                    offer = 'Buy 1 Get 1 FREE on select items. Don\'t miss out!';
-                    break;
-                case 'Free Gift':
-                    offer = 'Get a FREE gift with every purchase above ₹999!';
-                    break;
-                case 'Flash Sale':
-                    offer = 'Flash Sale: Unbeatable prices for the next 48 hours!';
-                    break;
-                case 'Festival Combo':
-                    offer = 'Special Festival Combos curated just for you. Save more!';
-                    break;
-                default:
-                    offer = 'Exciting offers await you!';
+
+            // Basic validation
+            if (!customFestival || !campaignTypeToSend || !startDate || !endDate) {
+                alert('Please fill in all required fields: Occasion/Festival, Campaign Type (or custom description), Start Date, and End Date.');
+                return;
             }
-            // Shop name
-            document.getElementById('campaignShop').innerText = shopName ? shopName : '';
-            // Banner
-            document.getElementById('campaignBanner').innerHTML = `<span>${banner}</span>`;
-            // Message & Offer
-            document.getElementById('campaignMessage').innerText = message;
-            document.getElementById('campaignOffer').innerText = offer;
-            // CTA
-            let cta = 'Visit us today!';
-            document.getElementById('campaignCTA').innerText = cta;
-            // Contact
-            let contact = '';
-            if(shopAddress) contact += `📍 ${shopAddress}`;
-            if(shopPhone) contact += (contact ? ' | ' : '') + `📞 ${shopPhone}`;
-            document.getElementById('campaignContact').innerText = contact;
-            // Validity
-            let validity = '';
-            if(validTill) {
-                const dateObj = new Date(validTill);
-                validity = `Offer valid till: ${dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
-            }
-            document.getElementById('campaignValidity').innerText = validity;
-            // Socials
-            let socials = '';
-            if(shopInsta) socials += `<span><i class='fab fa-instagram'></i> ${shopInsta}</span>`;
-            if(shopFB) socials += `<span><i class='fab fa-facebook'></i> ${shopFB}</span>`;
-            document.getElementById('campaignSocials').innerHTML = socials;
-            // Set background image
-            const bg = festivalBackgrounds[festival] || '';
-            const generatedDiv = document.getElementById('generatedCampaign');
-            if(bg) {
-                generatedDiv.style.backgroundImage = `linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)), url('${bg}')`;
-            } else {
+
+            // Show a loading indicator
+            const generateButton = event.target;
+            const originalButtonText = generateButton.innerText;
+            generateButton.innerText = 'Generating...';
+            generateButton.disabled = true;
+
+            try {
+                const response = await fetch('/api/generate_campaign_content', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        festival: customFestival,
+                        sale_type: campaignTypeToSend, // Send the determined campaign type
+                        start_date: startDate,
+                        end_date: endDate,
+                        shop_name: shopName,
+                        shop_address: shopAddress,
+                        shop_phone: shopPhone,
+                        valid_till: validTill,
+                        shop_insta: shopInsta,
+                        shop_fb: shopFB
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to generate campaign content.');
+                }
+
+                const campaignData = await response.json();
+                console.log("Gemini Generated Data:", campaignData); // For debugging
+
+                // Populate the generated campaign section with Gemini's response
+                document.getElementById('campaignShop').innerText = shopName ? shopName : '';
+                document.getElementById('campaignBanner').innerHTML = `<span>${campaignData.banner_slogan || 'Campaign Banner'}</span>`;
+                document.getElementById('campaignMessage').innerText = campaignData.main_message || '';
+                document.getElementById('campaignOffer').innerText = campaignData.offer_details || '';
+                document.getElementById('campaignCTA').innerText = campaignData.call_to_action || 'Visit us today!';
+
+                let contact = '';
+                if(shopAddress) contact += `📍 ${shopAddress}`;
+                if(shopPhone) contact += (contact ? ' | ' : '') + `📞 ${shopPhone}`;
+                document.getElementById('campaignContact').innerText = contact;
+
+                let validity = '';
+                const displayValidTill = validTill || endDate;
+                if(displayValidTill) {
+                    const dateObj = new Date(displayValidTill);
+                    validity = `Offer valid till: ${dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                }
+                document.getElementById('campaignValidity').innerText = validity;
+
+                let socials = '';
+                if(shopInsta) socials += `<span><i class='fab fa-instagram'></i> ${shopInsta}</span>`;
+                if(shopFB) socials += `<span><i class='fab fa-facebook'></i> ${shopFB}</span>`;
+                document.getElementById('campaignSocials').innerHTML = socials;
+
+                const generatedDiv = document.getElementById('generatedCampaign');
                 generatedDiv.style.backgroundImage = 'none';
+                generatedDiv.style.background = 'linear-gradient(90deg, #ffd47a 0%, #8f5fff 100%)';
+                generatedDiv.style.display = 'block';
+
+                // HIDE THE INPUT FORMS AFTER GENERATION
+                document.getElementById('extraInputsForm').style.display = 'none';
+                document.getElementById('campaignForm').style.display = 'none';
+
+
+            } catch (error) {
+                console.error('Error generating campaign:', error);
+                alert('Error generating campaign: ' + error.message + '\nCheck console for details.');
+            } finally {
+                generateButton.innerText = originalButtonText;
+                generateButton.disabled = false;
             }
-            generatedDiv.style.display = 'block';
         }
+
         function downloadCampaignImage() {
             const node = document.getElementById('generatedCampaign');
-            // Remove action buttons before capture
             const actionBtns = node.querySelector('.action-buttons');
             if (actionBtns) actionBtns.style.display = 'none';
             html2canvas(node, {backgroundColor: null, useCORS: true}).then(canvas => {
@@ -632,7 +679,6 @@
                 link.download = 'festival-campaign.png';
                 link.href = canvas.toDataURL();
                 link.click();
-                // Restore action buttons
                 if (actionBtns) actionBtns.style.display = 'flex';
             });
         }
@@ -654,4 +700,4 @@
         }
     </script>
 </body>
-</html> 
+</html>
