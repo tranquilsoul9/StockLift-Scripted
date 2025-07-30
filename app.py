@@ -2,10 +2,36 @@ from flask import Flask, render_template, request, jsonify, send_from_directory,
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import json
 import os
 from dotenv import load_dotenv
+import google.generativeai as genai # Ensure this is already imported
+import json # Ensure this is already imported
+import re # Ensure this is already imported
+import os
+os.environ['HTTP_PROXY'] = 'http://172.31.2.4:8080'
+os.environ['HTTPS_PROXY'] = 'http://172.31.2.4:8080'
+from dotenv import load_dotenv
 
+# In app.py, after genai.configure(api_key=...)
+try:
+    print("\n--- Listing available Gemini models ---")
+    for m in genai.list_models():
+        if "generateContent" in m.supported_generation_methods:
+            print(f"Model: {m.name}, Supported Methods: {m.supported_generation_methods}")
+    print("--- End model list ---\n")
+except Exception as e:
+    print(f"Error listing models: {e}")
+    
+load_dotenv() # Load environment variables from .env file
+
+api_key_status = "Found" if os.environ.get('GOOGLE_API_KEY') else "Not Found"
+print(f"DEBUG: GOOGLE_API_KEY status: {api_key_status}")
+import google.generativeai as genai
+# Configure Google Generative AI if API key is available
+if os.environ.get('GOOGLE_API_KEY'):
+    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+else:
+    print("Warning: GOOGLE_API_KEY not found. Some AI features may not work.")
 # Import our custom modules
 from models.product_health import ProductHealthAnalyzer
 from models.festival_engine import FestivalPromotionEngine
@@ -718,31 +744,21 @@ def background_removal_real():
     file = request.files.get('image')
     if not file:
         return jsonify({'error': 'No image uploaded'}), 400
-    
     filename = secure_filename(file.filename)
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(input_path)
-    
-    try:
-        # Open image
-        img = Image.open(input_path).convert('RGB')
-        
-        # Use BiRefNet for superior background removal
-        result_img = remove_background_birefnet(img, model_name='birefnet-general', advanced=True)
-        
-        # Save processed image
-        processed_filename = 'bgremoved_' + filename.rsplit('.', 1)[0] + '.png'
-        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-        result_img.save(processed_path, 'PNG')
-        
-        return jsonify({
-            'processed_url': f'/processed/{processed_filename}',
-            'message': 'Background removed successfully using BiRefNet'
-        })
-        
-    except Exception as e:
-        print(f"Background removal error: {e}")
-        return jsonify({'error': 'Background removal failed. Please try again.'}), 500
+    # Open image
+    img = Image.open(input_path).convert('RGBA')
+    # Run U2Net to get mask
+    mask = run_u2net(img)
+    # Ensure mask is single channel, same size as img
+    mask = mask.resize(img.size, Image.BILINEAR).convert('L')
+    # Apply mask as alpha channel
+    img.putalpha(mask)
+    processed_filename = 'bgremoved_' + filename
+    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
+    img.save(processed_path, 'PNG')
+    return jsonify({'processed_url': f'/processed/{processed_filename}'})
 
 @app.route('/process/enhance', methods=['POST'])
 def enhance():
@@ -978,6 +994,66 @@ def get_in_touch():
 def campaign_generator():
     return render_template('campaign_generator.html')
 
+@app.route('/api/generate_campaign_content', methods=['POST'])
+def generate_campaign_content():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        festival = data.get('festival', 'a special occasion')
+        region = data.get('region', 'your area')
+        campaign_type = data.get('campaign_type', 'exciting offers')
+        shop_name = data.get('shop_name', 'our shop')
+        shop_address = data.get('shop_address', '')
+        shop_phone = data.get('shop_phone', '')
+        valid_till = data.get('valid_till', '')
+        shop_insta = data.get('shop_insta', '')
+        shop_fb = data.get('shop_fb', '')
+
+        # Construct a detailed prompt for Gemini
+        prompt = f"""
+        You are a creative marketing assistant. Generate a festive campaign for a shop.
+        The campaign should be for {shop_name} (located at {shop_address} if provided).
+        It is for the {festival} festival in the {region} region.
+        The campaign type is a {campaign_type}.
+
+        Generate the following JSON structure. Ensure the output is ONLY a valid JSON object.
+        No additional text, markdown backticks, or explanations outside the JSON.
+
+        {{
+            "banner_slogan": "A catchy, festive slogan for the main banner (e.g., 'Diwali Sparkle Sale!'). Include relevant emojis.",
+            "main_message": "A compelling, short paragraph for the campaign message, incorporating the festival and region.",
+            "offer_details": "A clear and enticing description of the offer, based on '{campaign_type}'. Be specific and highlight benefits.",
+            "call_to_action": "A strong and urgent call to action (e.g., 'Shop Now!', 'Grab Yours Today!').",
+            "social_media_caption": "A short, engaging caption for social media (e.g., Instagram/Facebook), including relevant hashtags and emojis. Mention the shop name if possible.",
+            "additional_tips": [
+                "1-2 short, actionable tips for the shopkeeper to promote this specific campaign (e.g., 'Highlight best-selling items related to the offer.')."
+            ]
+        }}
+        """
+
+        # Initialize Gemini model
+        model = genai.GenerativeModel("gemini-1.5-flash") # Using gemini-pro for text generation
+        response = model.generate_content(prompt)
+        raw_text = response.text.strip()
+
+        # Attempt to parse the JSON response. Gemini sometimes wraps it in markdown.
+        try:
+            # Remove markdown code block if present
+            cleaned_text = re.sub(r"^```json|^```|```$", "", raw_text, flags=re.MULTILINE).strip()
+            campaign_data = json.loads(cleaned_text)
+        except json.JSONDecodeError as e:
+            print(f"JSON Decode Error: {e}")
+            print(f"Raw Gemini response: {raw_text}")
+            return jsonify({'error': 'Failed to parse Gemini response', 'raw_response': raw_text, 'exception': str(e)}), 500
+
+        return jsonify(campaign_data)
+
+    except Exception as e:
+        print(f"Error in generate_campaign_content: {e}")
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+    
 @app.route('/logout')
 def logout():
     session.pop('shopkeeper_logged_in', None)
