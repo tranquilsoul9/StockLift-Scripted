@@ -677,7 +677,7 @@ import os
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 import io
-from u2net.infer import run_u2net
+from models.simple_bg_removal import remove_background_simple
 import numpy as np
 import cv2
 import google.generativeai as genai
@@ -720,21 +720,31 @@ def background_removal_real():
     file = request.files.get('image')
     if not file:
         return jsonify({'error': 'No image uploaded'}), 400
+    
     filename = secure_filename(file.filename)
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(input_path)
-    # Open image
-    img = Image.open(input_path).convert('RGBA')
-    # Run U2Net to get mask
-    mask = run_u2net(img)
-    # Ensure mask is single channel, same size as img
-    mask = mask.resize(img.size, Image.BILINEAR).convert('L')
-    # Apply mask as alpha channel
-    img.putalpha(mask)
-    processed_filename = 'bgremoved_' + filename
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    img.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
+    
+    try:
+        # Open image
+        img = Image.open(input_path).convert('RGB')
+        
+        # Use simple background removal with rembg
+        result_img = remove_background_simple(img)
+        
+        # Save processed image
+        processed_filename = 'bgremoved_' + filename.rsplit('.', 1)[0] + '.png'
+        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
+        result_img.save(processed_path, 'PNG')
+        
+        return jsonify({
+            'processed_url': f'/processed/{processed_filename}',
+            'message': 'Background removed successfully'
+        })
+        
+    except Exception as e:
+        print(f"Background removal error: {e}")
+        return jsonify({'error': 'Background removal failed. Please try again.'}), 500
 
 @app.route('/process/enhance', methods=['POST'])
 def enhance():
