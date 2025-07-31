@@ -4,35 +4,41 @@ import numpy as np
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
-import google.generativeai as genai # Ensure this is already imported
-import json # Ensure this is already imported
-import re # Ensure this is already imported
-import os
+import google.generativeai as genai
+import json
+import re
+from werkzeug.utils import secure_filename
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+import io
+
+# Load environment variables from .env file
+load_dotenv()
+
+# --- Proxy Configuration (if needed) ---
+# Uncomment and configure if you are behind a proxy
 os.environ['HTTP_PROXY'] = 'http://172.31.2.4:8080'
 os.environ['HTTPS_PROXY'] = 'http://172.31.2.4:8080'
-from dotenv import load_dotenv
 
-# In app.py, after genai.configure(api_key=...)
-try:
-    print("\n--- Listing available Gemini models ---")
-    for m in genai.list_models():
-        if "generateContent" in m.supported_generation_methods:
-            print(f"Model: {m.name}, Supported Methods: {m.supported_generation_methods}")
-    print("--- End model list ---\n")
-except Exception as e:
-    print(f"Error listing models: {e}")
-    
-load_dotenv() # Load environment variables from .env file
-
+# --- Google Generative AI Configuration ---
 api_key_status = "Found" if os.environ.get('GOOGLE_API_KEY') else "Not Found"
 print(f"DEBUG: GOOGLE_API_KEY status: {api_key_status}")
-import google.generativeai as genai
-# Configure Google Generative AI if API key is available
+
 if os.environ.get('GOOGLE_API_KEY'):
     genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+    try:
+        print("\n--- Listing available Gemini models ---")
+        for m in genai.list_models():
+            if "generateContent" in m.supported_generation_methods:
+                print(f"Model: {m.name}, Supported Methods: {m.supported_generation_methods}")
+        print("--- End model list ---\n")
+    except Exception as e:
+        print(f"Error listing models: {e}")
 else:
     print("Warning: GOOGLE_API_KEY not found. Some AI features may not work.")
-# Import our custom modules
+
+# --- Import Custom Modules ---
+# Ensure these files (e.g., product_health.py) are in a 'models' directory
+# at the same level as your app.py, or adjust the import paths accordingly.
 from models.product_health import ProductHealthAnalyzer
 from models.festival_engine import FestivalPromotionEngine
 from models.discount_calculator import SmartDiscountCalculator
@@ -40,26 +46,21 @@ from models.location_service import LocationService
 from models.bundle_calculator import BundleCalculator
 from models.product_tracker import ProductTracker
 
-load_dotenv()
-
+# --- Flask App Initialization ---
 app = Flask(__name__, static_folder='static', template_folder='templates')
-app.secret_key = 'your-very-secret-key' 
-# Configure app for Vercel deployment
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'your-very-secret-key-default') # Use env var for secret key
+
+# Configure app for Vercel deployment (or local 'uploads' and 'processed' folders)
 app.config['UPLOAD_FOLDER'] = '/tmp/uploads' if os.environ.get('VERCEL') else 'uploads'
 app.config['PROCESSED_FOLDER'] = '/tmp/processed' if os.environ.get('VERCEL') else 'processed'
-
-
-
-# Verify Google API key is available
-if not os.environ.get('GOOGLE_API_KEY'):
-    print("Warning: GOOGLE_API_KEY not found in environment variables")
-    print("Set it using: export GOOGLE_API_KEY=your-api-key")
+app.config['EXPORTS_FOLDER'] = '/tmp/exports' if os.environ.get('VERCEL') else 'exports' # For CSV exports
 
 # Create directories if they don't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+os.makedirs(app.config['EXPORTS_FOLDER'], exist_ok=True) # Ensure exports folder exists
 
-# Initialize models
+# --- Initialize Models/Services ---
 health_analyzer = ProductHealthAnalyzer()
 discount_calculator = SmartDiscountCalculator()
 festival_engine = FestivalPromotionEngine()
@@ -67,7 +68,7 @@ location_service = LocationService()
 bundle_calculator = BundleCalculator()
 product_tracker = ProductTracker()
 
-# Create demo shopkeeper if it doesn't exist
+# --- Demo Data Setup ---
 try:
     product_tracker.register_shopkeeper(
         user_id="demo_shopkeeper_001",
@@ -77,7 +78,7 @@ try:
         phone="9876543210",
         location="Mumbai"
     )
-    print("Demo shopkeeper created successfully")
+    print("Demo shopkeeper created successfully.")
     
     # Add sample products for demo user
     sample_products = [
@@ -97,7 +98,7 @@ try:
                 initial_quantity=product["initial_quantity"]
             )
         except Exception as e:
-            print(f"Product {product['sku']} already exists or error: {e}")
+            print(f"Product {product['sku']} already exists or error adding product: {e}")
     
     # Add sample sale events
     sample_events = [
@@ -119,33 +120,70 @@ try:
                 notes=event["notes"]
             )
         except Exception as e:
-            print(f"Event for {event['sku']} already exists or error: {e}")
+            print(f"Event for {event['sku']} already exists or error recording event: {e}")
             
-    print("Demo data added successfully")
+    print("Demo data added successfully.")
     
 except Exception as e:
-    print(f"Demo shopkeeper already exists or error: {e}")
+    print(f"Demo shopkeeper already exists or error during demo setup: {e}")
 
+# --- Frontend Routes ---
 @app.route('/')
 def index():
     """Main dashboard page"""
     return render_template('index.html')
 
 @app.route('/login')
-def login():
+def login_page(): # Renamed to avoid conflict with login_api
     """Login page"""
     return render_template('login.html')
 
 @app.route('/shopkeeper')
 def shopkeeper_dashboard():
     """Shopkeeper dashboard page"""
+    # You might want to add a login_required decorator here in a real app
     return render_template('shopkeeper_dashboard.html')
+
+@app.route('/photogenix')
+def photogenix():
+    return render_template('indexphoto.html')
+
+@app.route('/get-in-touch')
+def get_in_touch():
+    return render_template('get_in_touch.html')
+
+@app.route('/campaign-generator')
+def campaign_generator():
+    return render_template('campaign_generator.html')
+
+# --- Static Files Serving ---
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    # Ensure this path matches where your static files are stored
+    return send_from_directory('static', filename)
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/processed/<filename>')
+def processed_file(filename):
+    return send_from_directory(app.config['PROCESSED_FOLDER'], filename)
+
+@app.route('/download/<path:filename>')
+def download_file(filename):
+    """Download exported files"""
+    try:
+        return send_from_directory(app.config['EXPORTS_FOLDER'], filename, as_attachment=True)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
+
+# --- API Endpoints ---
 
 @app.route('/api/health-stats')
 def health_stats():
     """Get overall inventory health statistics"""
-    # This would typically come from a database
-    # For demo purposes, we'll return sample data
+    # This would typically come from a database, or aggregated from product_tracker
     stats = {
         'total_products': 1250,
         'dead_stock': 180,
@@ -241,7 +279,8 @@ def analyze_product():
                 'risk_score': (1 - health_score) * 100,
                 'health_status': 'At Risk' if health_score < 0.6 else 'Healthy',
                 'discount_category': 'High' if discount_percent > 30 else 'Medium' if discount_percent > 15 else 'Low',
-                'reasoning': [f'Based on {health_score:.1%} health score, {discount_percent}% discount recommended']
+                'reasoning': [f'Based on {health_score:.1%} health score, {discount_percent}% discount recommended'],
+                'sales_strategies': [] # Ensure fallback includes empty list for sales_strategies
             }
         
         try:
@@ -276,8 +315,17 @@ def analyze_product():
         result = {
             'product': product_data,
             'health_score': health_score,
-            'health_status': health_analyzer.get_health_status(health_score) if hasattr(health_analyzer, 'get_health_status') else ('Healthy' if health_score > 0.6 else 'At Risk' if health_score > 0.3 else 'Dead'),
-            'discount_recommendations': discount_result,
+            'health_status': health_analyzer.get_health_status(health_score), # Use the method from the imported class
+            'discount_recommendations': {
+                'recommended_discount': discount_result['recommended_discount'],
+                'new_price': discount_result['new_price'],
+                'price_reduction': discount_result['price_reduction'],
+                'expected_revenue': discount_result['expected_revenue'],
+                'risk_score': discount_result['risk_score'],
+                'health_status': discount_result['health_status'],
+                'reasoning': discount_result['reasoning']
+            },
+            'sales_strategies': discount_result['sales_strategies'], # This is now at the top level
             'festival_recommendations': festival_result,
             'product_festival_opportunities': product_opportunities,
             'bundle_recommendations': bundle_result,
@@ -316,7 +364,7 @@ def get_shopkeepers():
     return jsonify(shopkeepers)
 
 @app.route('/api/create-bundle', methods=['POST'])
-def create_bundle():
+def create_bundle_api(): # Renamed to avoid conflict with create_bundle function
     """Create a custom bundle with multiple shopkeepers"""
     try:
         data = request.get_json()
@@ -369,7 +417,7 @@ def get_bundle_recommendations():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/all-festivals')
-def get_all_festivals():
+def get_all_festivals_api(): # Renamed to avoid conflict with get_all_festivals function
     """Get all festivals with comprehensive information"""
     try:
         location = request.args.get('location')
@@ -386,10 +434,8 @@ def get_all_festivals():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-
 @app.route('/api/festival/<festival_key>/insights')
-def get_festival_insights(festival_key):
+def get_festival_insights_api(festival_key): # Renamed to avoid conflict with get_festival_insights function
     """Get comprehensive insights for a specific festival"""
     try:
         location = request.args.get('location')
@@ -430,7 +476,7 @@ def get_festival_countdown():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/festival-categories')
-def get_festival_categories():
+def get_festival_categories_api(): # Renamed to avoid conflict with get_festival_categories function
     """Get all festival categories with counts"""
     try:
         location = request.args.get('location')
@@ -457,7 +503,7 @@ def get_festival_categories():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/product-festival-opportunities', methods=['POST'])
-def get_product_festival_opportunities():
+def get_product_festival_opportunities_api(): # Renamed to avoid conflict with get_product_festival_opportunities function
     """Get specific festival opportunities for a product"""
     try:
         data = request.get_json()
@@ -478,7 +524,7 @@ def get_product_festival_opportunities():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/seller-recommendations', methods=['POST'])
-def get_seller_recommendations():
+def get_seller_recommendations_api(): # Renamed to avoid conflict with get_seller_recommendations function
     """Get local seller recommendations for bundle creation"""
     try:
         data = request.get_json()
@@ -545,7 +591,7 @@ def register_shopkeeper():
         phone = data.get('phone')
         location = data.get('location')
         
-        if not user_id or not shop_name or not password:
+        if not all([user_id, shop_name, password]):
             return jsonify({'error': 'User ID, shop name, and password are required'}), 400
         
         if not email:
@@ -633,7 +679,7 @@ def record_sale_event():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/shopkeeper-products/<user_id>')
-def get_shopkeeper_products(user_id):
+def get_shopkeeper_products_api(user_id): # Renamed to avoid conflict with get_shopkeeper_products function
     """Get all products for a shopkeeper"""
     try:
         products = product_tracker.get_shopkeeper_products(user_id)
@@ -642,7 +688,7 @@ def get_shopkeeper_products(user_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/product-history/<user_id>')
-def get_product_history(user_id):
+def get_product_history_api(user_id): # Renamed to avoid conflict with get_product_history function
     """Get sale/update history for products"""
     try:
         sku = request.args.get('sku')
@@ -655,7 +701,7 @@ def get_product_history(user_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/export-history/<user_id>')
-def export_history(user_id):
+def export_history_api(user_id): # Renamed to avoid conflict with export_history function
     """Export product history to CSV"""
     try:
         sku = request.args.get('sku')
@@ -665,11 +711,8 @@ def export_history(user_id):
         filename = product_tracker.export_history_csv(user_id, sku or None, start_date or None, end_date or None)
         
         if filename:
-            return jsonify({
-                'success': True,
-                'filename': filename,
-                'download_url': f'/download/{filename}'
-            })
+            # Ensure the file is served from the correct EXPORTS_FOLDER
+            return send_from_directory(app.config['EXPORTS_FOLDER'], filename, as_attachment=True)
         else:
             return jsonify({'error': 'No data to export'}), 400
             
@@ -677,7 +720,7 @@ def export_history(user_id):
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/shopkeeper-stats/<user_id>')
-def get_shopkeeper_stats(user_id):
+def get_shopkeeper_stats_api(user_id): # Renamed to avoid conflict with get_shopkeeper_stats function
     """Get summary statistics for a shopkeeper"""
     try:
         stats = product_tracker.get_shopkeeper_stats(user_id)
@@ -685,59 +728,9 @@ def get_shopkeeper_stats(user_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/download/<path:filename>')
-def download_file(filename):
-    """Download exported files"""
-    try:
-        return send_from_directory('exports', filename, as_attachment=True)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 404
-
-
-
-# -------------------------------------Photogenix--------------------------------------
-from flask import Flask, render_template, request, send_from_directory, jsonify
-import os
-from werkzeug.utils import secure_filename
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps
-import io
-from models.birefnet_bg_removal import remove_background_birefnet, run_birefnet
-import numpy as np
-import cv2
-import google.generativeai as genai
-from dotenv import load_dotenv
-import json
-import re
-load_dotenv()
-
-
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['PROCESSED_FOLDER'] = 'processed'
-
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
-
-# Configure Google Generative AI if API key is available
-if os.environ.get('GOOGLE_API_KEY'):
-    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-else:
-    print("Warning: GOOGLE_API_KEY not found. Some AI features may not work.")
-
-@app.route('/photogenix')
-def photogenix():
-    return render_template('indexphoto.html')
-
-@app.route('/upload', methods=['POST'])
-def upload():
-    # Handle file upload
-    files = request.files.getlist('images')
-    saved_files = []
-    for file in files:
-        filename = secure_filename(file.filename)
-        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(path)
-        saved_files.append(filename)
-    return jsonify({'uploaded': saved_files})
+# --- Photogenix Image Processing Routes ---
+# Ensure u2net and cv2 (opencv-python) are installed for these routes to work
+# pip install u2net_human_seg opencv-python Pillow
 
 @app.route('/process/background_removal', methods=['POST'])
 def background_removal_real():
@@ -747,18 +740,22 @@ def background_removal_real():
     filename = secure_filename(file.filename)
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(input_path)
-    # Open image
-    img = Image.open(input_path).convert('RGBA')
-    # Run U2Net to get mask
-    mask = run_u2net(img)
-    # Ensure mask is single channel, same size as img
-    mask = mask.resize(img.size, Image.BILINEAR).convert('L')
-    # Apply mask as alpha channel
-    img.putalpha(mask)
-    processed_filename = 'bgremoved_' + filename
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    img.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
+    
+    try:
+        img = Image.open(input_path).convert('RGBA')
+        from u2net.infer import run_u2net # Import here to catch ImportError specifically
+        mask = run_u2net(img)
+        mask = mask.resize(img.size, Image.BILINEAR).convert('L')
+        img.putalpha(mask)
+        processed_filename = 'bgremoved_' + filename
+        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
+        img.save(processed_path, 'PNG')
+        return jsonify({'processed_url': f'/processed/{processed_filename}'})
+    except ImportError:
+        return jsonify({'error': 'U2Net module not found. Please install `u2net_human_seg` to use background removal.'}), 500
+    except Exception as e:
+        print(f"Error during background removal: {e}")
+        return jsonify({'error': f'Background removal failed: {str(e)}'}), 500
 
 @app.route('/process/enhance', methods=['POST'])
 def enhance():
@@ -768,18 +765,20 @@ def enhance():
     filename = secure_filename(file.filename)
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(input_path)
-    # Open image and convert to RGB for enhancement
-    img = Image.open(input_path).convert('RGB')
-    # Stronger enhancement: much higher brightness, contrast, color, and sharpness
-    img = ImageEnhance.Brightness(img).enhance(1.25)
-    img = ImageEnhance.Contrast(img).enhance(1.35)
-    img = ImageEnhance.Color(img).enhance(1.35)
-    img = ImageEnhance.Sharpness(img).enhance(2.0)
-    # Save processed image as PNG
-    processed_filename = 'enhanced_' + filename.rsplit('.', 1)[0] + '.png'
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    img.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
+    
+    try:
+        img = Image.open(input_path).convert('RGB')
+        img = ImageEnhance.Brightness(img).enhance(1.25)
+        img = ImageEnhance.Contrast(img).enhance(1.35)
+        img = ImageEnhance.Color(img).enhance(1.35)
+        img = ImageEnhance.Sharpness(img).enhance(2.0)
+        processed_filename = 'enhanced_' + filename.rsplit('.', 1)[0] + '.png'
+        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
+        img.save(processed_path, 'PNG')
+        return jsonify({'processed_url': f'/processed/{processed_filename}'})
+    except Exception as e:
+        print(f"Error during image enhancement: {e}")
+        return jsonify({'error': f'Image enhancement failed: {str(e)}'}), 500
 
 @app.route('/process/replace_background', methods=['POST'])
 def replace_background():
@@ -790,32 +789,51 @@ def replace_background():
     filename = secure_filename(file.filename)
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(input_path)
-    img = Image.open(input_path).convert('RGBA')
-    # Run BiRefNet to get mask
-    mask = run_birefnet(img)
-    mask = mask.resize(img.size, Image.BILINEAR).convert('L')
-    # Load selected background
+    
+    try:
+        img = Image.open(input_path).convert('RGBA')
+        from u2net.infer import run_u2net # Import here
+        mask = run_u2net(img)
+        mask = mask.resize(img.size, Image.BILINEAR).convert('L')
+    except ImportError:
+        return jsonify({'error': 'U2Net module not found. Please install `u2net_human_seg` to use background replacement.'}), 500
+    except Exception as e:
+        print(f"Error during background mask generation for replacement: {e}")
+        return jsonify({'error': f'Background mask generation failed: {str(e)}'}), 500
+
     bg_path = os.path.join('static', 'backgrounds', bg_name)
     if not os.path.exists(bg_path):
-        bg_path = os.path.join('static', 'backgrounds', 'white.jpg')
-    bg = Image.open(bg_path).convert('RGB').resize(img.size)
-    # Composite product onto background
-    product_rgba = img.copy()
-    product_rgba.putalpha(mask)
-    composite = Image.alpha_composite(bg.convert('RGBA'), product_rgba)
-    # Add drop shadow (OpenCV)
-    arr = np.array(composite)
-    shadow = cv2.GaussianBlur(arr[:,:,3], (21,21), 10)
-    arr[:,:,3] = np.maximum(arr[:,:,3], shadow)
-    composite = Image.fromarray(arr)
-    # Enhance color/tone
-    composite = ImageEnhance.Brightness(composite).enhance(1.08)
-    composite = ImageEnhance.Contrast(composite).enhance(1.12)
-    composite = ImageEnhance.Color(composite).enhance(1.15)
-    processed_filename = 'bgreplace_' + filename.rsplit('.', 1)[0] + '.png'
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    composite.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
+        bg_path = os.path.join('static', 'backgrounds', 'white.jpg') # Fallback to white
+    
+    try:
+        bg = Image.open(bg_path).convert('RGB').resize(img.size)
+        product_rgba = img.copy()
+        product_rgba.putalpha(mask)
+        composite = Image.alpha_composite(bg.convert('RGBA'), product_rgba)
+        
+        # Add drop shadow (OpenCV)
+        try:
+            import cv2 # Import here
+            arr = np.array(composite)
+            if arr.shape[2] == 4 and np.any(arr[:,:,3]):
+                shadow = cv2.GaussianBlur(arr[:,:,3], (21,21), 10)
+                arr[:,:,3] = np.maximum(arr[:,:,3], shadow)
+            composite = Image.fromarray(arr)
+        except ImportError:
+            print("Warning: OpenCV not found. Drop shadow not applied for background replacement.")
+        except Exception as e:
+            print(f"Error applying shadow for background replacement: {e}")
+
+        composite = ImageEnhance.Brightness(composite).enhance(1.08)
+        composite = ImageEnhance.Contrast(composite).enhance(1.12)
+        composite = ImageEnhance.Color(composite).enhance(1.15)
+        processed_filename = 'bgreplace_' + filename.rsplit('.', 1)[0] + '.png'
+        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
+        composite.save(processed_path, 'PNG')
+        return jsonify({'processed_url': f'/processed/{processed_filename}'})
+    except Exception as e:
+        print(f"Error during background replacement composite: {e}")
+        return jsonify({'error': f'Background replacement failed: {str(e)}'}), 500
 
 @app.route('/process/crop_resize', methods=['POST'])
 def crop_resize():
@@ -826,50 +844,47 @@ def crop_resize():
     filename = secure_filename(file.filename)
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(input_path)
-    img = Image.open(input_path).convert('RGB')
-    # Define platform sizes
-    sizes = {
-        'meesho': (1024, 1365),
-        'meesho4x4': (1000, 1000),
-        'amazon': (1000, 1000),
-        'instagram': (1080, 1080),
-        'shopify': (2048, 2048),
-        'flipkart': (2000, 2000),
-    }
-    size = sizes.get(platform, sizes['meesho'])
-    # Center crop to aspect ratio, then resize
-    w, h = img.size
-    target_w, target_h = size
-    target_ratio = target_w / target_h
-    img_ratio = w / h
-    if img_ratio > target_ratio:
-        # Image is wider than target: crop width
-        new_w = int(h * target_ratio)
-        left = (w - new_w) // 2
-        top = 0
-        right = left + new_w
-        bottom = h
-    else:
-        # Image is taller than target: crop height
-        new_h = int(w / target_ratio)
-        left = 0
-        top = (h - new_h) // 2
-        right = w
-        bottom = top + new_h
-    img_cropped = img.crop((left, top, right, bottom)).resize(size, Image.LANCZOS)
-    processed_filename = f'cropped_{platform}_' + filename.rsplit('.', 1)[0] + '.png'
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    img_cropped.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
+    
+    try:
+        img = Image.open(input_path).convert('RGB')
+        sizes = {
+            'meesho': (1024, 1365),
+            'meesho4x4': (1000, 1000),
+            'amazon': (1000, 1000),
+            'instagram': (1080, 1080),
+            'shopify': (2048, 2048),
+            'flipkart': (2000, 2000),
+        }
+        size = sizes.get(platform, sizes['meesho'])
+        w, h = img.size
+        target_w, target_h = size
+        target_ratio = target_w / target_h
+        img_ratio = w / h
+        if img_ratio > target_ratio:
+            new_w = int(h * target_ratio)
+            left = (w - new_w) // 2
+            top = 0
+            right = left + new_w
+            bottom = h
+        else:
+            new_h = int(w / target_ratio)
+            left = 0
+            top = (h - new_h) // 2
+            right = w
+            bottom = top + new_h
+        img_cropped = img.crop((left, top, right, bottom)).resize(size, Image.LANCZOS)
+        processed_filename = f'cropped_{platform}_' + filename.rsplit('.', 1)[0] + '.png'
+        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
+        img_cropped.save(processed_path, 'PNG')
+        return jsonify({'processed_url': f'/processed/{processed_filename}'})
+    except Exception as e:
+        print(f"Error during crop/resize: {e}")
+        return jsonify({'error': f'Crop/resize failed: {str(e)}'}), 500
 
 @app.route('/process/batch', methods=['POST'])
 def batch_process():
     # Stub: Replace with real batch processing logic
     return jsonify({'status': 'Batch processing stub'})
-
-import numpy as np
-from PIL import Image
-import os
 
 def get_dominant_color(img):
     img = img.convert('RGB').resize((64, 64))
@@ -885,62 +900,88 @@ def pick_best_background(product_img, backgrounds_dir='static/backgrounds/'):
     dominant = get_dominant_color(product_img)
     best_bg = None
     best_score = -1
+    if not os.path.exists(backgrounds_dir):
+        print(f"Warning: Backgrounds directory not found at {backgrounds_dir}")
+        return None 
+
     for bg_name in os.listdir(backgrounds_dir):
         if not (bg_name.endswith('.jpg') or bg_name.endswith('.png') or bg_name.endswith('.jpeg')):
             continue
         bg_path = os.path.join(backgrounds_dir, bg_name)
-        bg_img = Image.open(bg_path).resize(product_img.size)
-        bg_color = get_dominant_color(bg_img)
-        score = np.linalg.norm(np.array(dominant) - np.array(bg_color))
-        if score > best_score:
-            best_score = score
-            best_bg = bg_path
-    return best_bg
+        try:
+            bg_img = Image.open(bg_path).resize(product_img.size)
+            bg_color = get_dominant_color(bg_img)
+            score = np.linalg.norm(np.array(dominant) - np.array(bg_color))
+            if score > best_score:
+                best_score = score
+                best_bg = bg_path
+        except Exception as e:
+            print(f"Error processing background image {bg_name}: {e}")
+            continue
+    return best_bg if best_bg else os.path.join('static', 'backgrounds', 'white.jpg') # Fallback if no suitable background found
 
 @app.route('/process/make_professional', methods=['POST'])
 def make_professional():
     file = request.files.get('image')
-    bg_choice = request.form.get('background', 'white.jpg')
     preset = request.form.get('preset', 'clean_studio')
     if not file:
         return jsonify({'error': 'No image uploaded'}), 400
     filename = secure_filename(file.filename)
     input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(input_path)
-    # Open image
-    img = Image.open(input_path).convert('RGBA')
-    # Run BiRefNet to get mask
-    mask = run_birefnet(img)
-    mask = mask.resize(img.size, Image.BILINEAR).convert('L')
-    # Load background
+    
+    try:
+        img = Image.open(input_path).convert('RGBA')
+        from u2net.infer import run_u2net
+        mask = run_u2net(img)
+        mask = mask.resize(img.size, Image.BILINEAR).convert('L')
+    except ImportError:
+        return jsonify({'error': 'U2Net module not found. Please install `u2net_human_seg` to use professional processing.'}), 500
+    except Exception as e:
+        print(f"Error during mask generation for professional processing: {e}")
+        return jsonify({'error': f'Mask generation failed: {str(e)}'}), 500
+
     bg_path = pick_best_background(img)
     if not os.path.exists(bg_path):
-        bg_path = os.path.join('static', 'backgrounds', 'white.jpg')
-    bg = Image.open(bg_path).convert('RGB').resize(img.size)
-    # Composite product onto background
-    product_rgba = img.copy()
-    product_rgba.putalpha(mask)
-    composite = Image.alpha_composite(bg.convert('RGBA'), product_rgba)
-    # Add drop shadow (OpenCV)
-    arr = np.array(composite)
-    shadow = cv2.GaussianBlur(arr[:,:,3], (21,21), 10)
-    arr[:,:,3] = np.maximum(arr[:,:,3], shadow)
-    composite = Image.fromarray(arr)
-    # Enhance color/tone
-    composite = ImageEnhance.Brightness(composite).enhance(1.08)
-    composite = ImageEnhance.Contrast(composite).enhance(1.12)
-    composite = ImageEnhance.Color(composite).enhance(1.15)
-    # Style presets
-    if preset == 'luxury_matte':
-        composite = ImageOps.colorize(composite.convert('L'), black='#222', white='#faf8ff')
-    elif preset == 'minimalist_white':
-        composite = ImageEnhance.Brightness(composite).enhance(1.15)
-        composite = ImageEnhance.Color(composite).enhance(1.05)
-    # Save processed image
-    processed_filename = 'professional_' + filename.rsplit('.', 1)[0] + '.png'
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    composite.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
+        bg_path = os.path.join('static', 'backgrounds', 'white.jpg') # Fallback to white if pick_best_background fails
+    
+    try:
+        bg = Image.open(bg_path).convert('RGB').resize(img.size)
+        product_rgba = img.copy()
+        product_rgba.putalpha(mask)
+        composite = Image.alpha_composite(bg.convert('RGBA'), product_rgba)
+        
+        # Add drop shadow (OpenCV)
+        try:
+            import cv2
+            arr = np.array(composite)
+            if arr.shape[2] == 4 and np.any(arr[:,:,3]):
+                shadow = cv2.GaussianBlur(arr[:,:,3], (21,21), 10)
+                arr[:,:,3] = np.maximum(arr[:,:,3], shadow)
+            composite = Image.fromarray(arr)
+        except ImportError:
+            print("Warning: OpenCV not found. Drop shadow not applied for professional processing.")
+        except Exception as e:
+            print(f"Error applying shadow for professional processing: {e}")
+
+        composite = ImageEnhance.Brightness(composite).enhance(1.08)
+        composite = ImageEnhance.Contrast(composite).enhance(1.12)
+        composite = ImageEnhance.Color(composite).enhance(1.15)
+        
+        # Style presets
+        if preset == 'luxury_matte':
+            composite = ImageOps.colorize(composite.convert('L'), black='#222', white='#faf8ff')
+        elif preset == 'minimalist_white':
+            composite = ImageEnhance.Brightness(composite).enhance(1.15)
+            composite = ImageEnhance.Color(composite).enhance(1.05)
+        
+        processed_filename = 'professional_' + filename.rsplit('.', 1)[0] + '.png'
+        processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
+        composite.save(processed_path, 'PNG')
+        return jsonify({'processed_url': f'/processed/{processed_filename}'})
+    except Exception as e:
+        print(f"Error during professional processing composite: {e}")
+        return jsonify({'error': f'Professional processing failed: {str(e)}'}), 500
 
 @app.route('/process/creative_content', methods=['POST'])
 def creative_content():
@@ -948,51 +989,36 @@ def creative_content():
     if not file:
         return jsonify({'error': 'No image uploaded'}), 400
 
-    image = Image.open(file.stream).convert('RGB')
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    prompt = (
-        "Given this product image, respond ONLY with a valid JSON object with the following fields: "
-        "title, description, bullets (a list of 3 bullet points), tags (a list), and caption. "
-        "Do not include any explanation, markdown, or text outside the JSON. Example:\n"
-        "{\n"
-        '  \"title\": \"Minimalist White Sneaker for Everyday Comfort\",\n'
-        '  \"description\": \"A clean, classic white sneaker...\",\n'
-        '  \"bullets\": [\"Lightweight and breathable\", \"All-day comfort\", \"Sleek design\"],\n'
-        '  \"tags\": [\"#WhiteSneakers\", \"#ComfortWear\"],\n'
-        '  \"caption\": \"Step into style and comfort! #SneakerLove\"\n'
-        "}\n"
-    )
-    response = model.generate_content([prompt, image])
-    text = response.text.strip()
     try:
-        # Remove markdown code block if present
-        text_clean = re.sub(r"^```json|^```|```$", "", text, flags=re.MULTILINE).strip()
-        # Extract the first JSON object from the cleaned text
-        match = re.search(r'\{.*\}', text_clean, re.DOTALL)
-        if match:
-            json_str = match.group(0)
-            data = json.loads(json_str)
-            return jsonify(data)
-        else:
-            raise ValueError("No JSON object found in response.")
+        image = Image.open(file.stream).convert('RGB')
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        prompt = (
+            "Given this product image, respond ONLY with a valid JSON object with the following fields: "
+            "title, description, bullets (a list of 3 bullet points), tags (a list), and caption. "
+            "Do not include any explanation, markdown, or text outside the JSON. Example:\n"
+            "{\n"
+            '   \"title\": \"Minimalist White Sneaker for Everyday Comfort\",\n'
+            '   \"description\": \"A clean, classic white sneaker...\",\n'
+            '   \"bullets\": [\"Lightweight and breathable\", \"All-day comfort\", \"Sleek design\"],\n'
+            '   \"tags\": [\"#WhiteSneakers\", \"#ComfortWear\"],\n'
+            '   \"caption\": \"Step into style and comfort! #SneakerLove\"\n'
+            "}\n"
+        )
+        response = model.generate_content(
+            contents=[prompt, image],
+            generation_config=genai.types.GenerationConfig(response_mime_type="application/json")
+        )
+        
+        text = response.text.strip()
+        data = json.loads(text) # Directly parse as JSON
+        return jsonify(data)
+    except json.JSONDecodeError as e:
+        print(f"JSON Decode Error: {e}")
+        print(f"Raw Gemini response: {text}")
+        return jsonify({'error': 'Could not parse Gemini response', 'raw_response': text, 'exception': str(e)}), 500
     except Exception as e:
-        return jsonify({'error': 'Could not parse Gemini response', 'raw': text, 'exception': str(e)})
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-@app.route('/processed/<filename>')
-def processed_file(filename):
-    return send_from_directory(app.config['PROCESSED_FOLDER'], filename)
-
-@app.route('/get-in-touch')
-def get_in_touch():
-    return render_template('get_in_touch.html')
-
-@app.route('/campaign-generator')
-def campaign_generator():
-    return render_template('campaign_generator.html')
+        print(f"Error during creative content generation: {e}")
+        return jsonify({'error': f'Creative content generation failed: {str(e)}'}), 500
 
 @app.route('/api/generate_campaign_content', methods=['POST'])
 def generate_campaign_content():
@@ -1011,7 +1037,6 @@ def generate_campaign_content():
         shop_insta = data.get('shop_insta', '')
         shop_fb = data.get('shop_fb', '')
 
-        # Construct a detailed prompt for Gemini
         prompt = f"""
         You are a creative marketing assistant. Generate a festive campaign for a shop.
         The campaign should be for {shop_name} (located at {shop_address} if provided).
@@ -1033,23 +1058,20 @@ def generate_campaign_content():
         }}
         """
 
-        # Initialize Gemini model
-        model = genai.GenerativeModel("gemini-1.5-flash") # Using gemini-pro for text generation
-        response = model.generate_content(prompt)
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        response = model.generate_content(
+            contents=[prompt],
+            generation_config=genai.types.GenerationConfig(response_mime_type="application/json")
+        )
         raw_text = response.text.strip()
 
-        # Attempt to parse the JSON response. Gemini sometimes wraps it in markdown.
-        try:
-            # Remove markdown code block if present
-            cleaned_text = re.sub(r"^```json|^```|```$", "", raw_text, flags=re.MULTILINE).strip()
-            campaign_data = json.loads(cleaned_text)
-        except json.JSONDecodeError as e:
-            print(f"JSON Decode Error: {e}")
-            print(f"Raw Gemini response: {raw_text}")
-            return jsonify({'error': 'Failed to parse Gemini response', 'raw_response': raw_text, 'exception': str(e)}), 500
-
+        campaign_data = json.loads(raw_text) # Directly parse as JSON
         return jsonify(campaign_data)
 
+    except json.JSONDecodeError as e:
+        print(f"JSON Decode Error: {e}")
+        print(f"Raw Gemini response: {raw_text}")
+        return jsonify({'error': 'Failed to parse Gemini response', 'raw_response': raw_text, 'exception': str(e)}), 500
     except Exception as e:
         print(f"Error in generate_campaign_content: {e}")
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
@@ -1060,5 +1082,7 @@ def logout():
     return redirect(url_for('index'))
 
 if __name__ == "__main__":
+    # Ensure GOOGLE_API_KEY is set in your environment variables for Gemini to work
+    # Example: export GOOGLE_API_KEY='your_api_key_here'
     port = int(os.environ.get("PORT", 8050))
     app.run(host="0.0.0.0", port=port)
