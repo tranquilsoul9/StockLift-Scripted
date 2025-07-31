@@ -1,1064 +1,1534 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import os
-from dotenv import load_dotenv
-import google.generativeai as genai # Ensure this is already imported
-import json # Ensure this is already imported
-import re # Ensure this is already imported
-import os
-os.environ['HTTP_PROXY'] = 'http://172.31.2.4:8080'
-os.environ['HTTPS_PROXY'] = 'http://172.31.2.4:8080'
-from dotenv import load_dotenv
+// Dead Stock Intelligence - Main Application JavaScript
 
-# In app.py, after genai.configure(api_key=...)
-try:
-    print("\n--- Listing available Gemini models ---")
-    for m in genai.list_models():
-        if "generateContent" in m.supported_generation_methods:
-            print(f"Model: {m.name}, Supported Methods: {m.supported_generation_methods}")
-    print("--- End model list ---\n")
-except Exception as e:
-    print(f"Error listing models: {e}")
-    
-load_dotenv() # Load environment variables from .env file
+// Global variables
+let currentLocation = 'mumbai';
 
-api_key_status = "Found" if os.environ.get('GOOGLE_API_KEY') else "Not Found"
-print(f"DEBUG: GOOGLE_API_KEY status: {api_key_status}")
-import google.generativeai as genai
-# Configure Google Generative AI if API key is available
-if os.environ.get('GOOGLE_API_KEY'):
-    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-else:
-    print("Warning: GOOGLE_API_KEY not found. Some AI features may not work.")
-# Import our custom modules
-from models.product_health import ProductHealthAnalyzer
-from models.festival_engine import FestivalPromotionEngine
-from models.discount_calculator import SmartDiscountCalculator
-from models.location_service import LocationService
-from models.bundle_calculator import BundleCalculator
-from models.product_tracker import ProductTracker
+let bundleAnalytics = {};
 
-load_dotenv()
+// Immediately hide dashboard on page load to prevent flash for logged-out users
+(function() {
+  var dash = document.getElementById('shopkeeperDashboard');
+  if (dash) dash.style.display = 'none';
+})();
 
-app = Flask(__name__, static_folder='static', template_folder='templates')
-app.secret_key = 'your-very-secret-key' 
-# Configure app for Vercel deployment
-app.config['UPLOAD_FOLDER'] = '/tmp/uploads' if os.environ.get('VERCEL') else 'uploads'
-app.config['PROCESSED_FOLDER'] = '/tmp/processed' if os.environ.get('VERCEL') else 'processed'
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+  // Always hide dashboard on load
+  var dash = document.getElementById('shopkeeperDashboard');
+  if (dash) dash.style.display = 'none';
 
+  // Only show dashboard if user is authenticated
+  if (checkUserAuth()) {
+    showShopkeeperDashboard();
+  } else {
+    showLoggedOutUser();
+  }
 
+  // Load public data (not shopkeeper-specific)
+  loadHealthStats();
+  loadRegionalFestivals();
+  loadFestivalCategories();
 
-# Verify Google API key is available
-if not os.environ.get('GOOGLE_API_KEY'):
-    print("Warning: GOOGLE_API_KEY not found in environment variables")
-    print("Set it using: export GOOGLE_API_KEY=your-api-key")
+  // Form event listeners
+  document.getElementById('productForm').addEventListener('submit', handleProductAnalysis);
+  document.getElementById('bundleForm').addEventListener('submit', handleBundleCreation);
 
-# Create directories if they don't exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+  // Shopkeeper dashboard form event listeners
+  const addProductForm = document.getElementById('addProductForm');
+  const recordEventForm = document.getElementById('recordEventForm');
 
-# Initialize models
-health_analyzer = ProductHealthAnalyzer()
-discount_calculator = SmartDiscountCalculator()
-festival_engine = FestivalPromotionEngine()
-location_service = LocationService()
-bundle_calculator = BundleCalculator()
-product_tracker = ProductTracker()
+  if (addProductForm) {
+    addProductForm.addEventListener('submit', handleAddProduct);
+  }
+  if (recordEventForm) {
+    recordEventForm.addEventListener('submit', handleRecordEvent);
+  }
+});
 
-# Create demo shopkeeper if it doesn't exist
-try:
-    product_tracker.register_shopkeeper(
-        user_id="demo_shopkeeper_001",
-        shop_name="Demo Fashion Store",
-        password="demo123",
-        email="demo@gmail.com",
-        phone="9876543210",
-        location="Mumbai"
-    )
-    print("Demo shopkeeper created successfully")
-    
-    # Add sample products for demo user
-    sample_products = [
-        {"sku": "TSHIRT001", "product_name": "Cotton T-Shirt", "category": "clothing", "initial_quantity": 50},
-        {"sku": "JEANS002", "product_name": "Blue Denim Jeans", "category": "clothing", "initial_quantity": 30},
-        {"sku": "SHOES003", "product_name": "Sports Shoes", "category": "sports", "initial_quantity": 25},
-        {"sku": "BAG004", "product_name": "Leather Handbag", "category": "clothing", "initial_quantity": 15}
-    ]
-    
-    for product in sample_products:
-        try:
-            product_tracker.add_product(
-                user_id="demo_shopkeeper_001",
-                sku=product["sku"],
-                product_name=product["product_name"],
-                category=product["category"],
-                initial_quantity=product["initial_quantity"]
-            )
-        except Exception as e:
-            print(f"Product {product['sku']} already exists or error: {e}")
-    
-    # Add sample sale events
-    sample_events = [
-        {"sku": "TSHIRT001", "event_type": "sale", "quantity_changed": -5, "price_per_unit": 299.99, "notes": "Weekend sale"},
-        {"sku": "JEANS002", "event_type": "sale", "quantity_changed": -3, "price_per_unit": 899.99, "notes": "Online order"},
-        {"sku": "SHOES003", "event_type": "sale", "quantity_changed": -2, "price_per_unit": 1299.99, "notes": "Store sale"},
-        {"sku": "TSHIRT001", "event_type": "restock", "quantity_changed": 10, "price_per_unit": 200.00, "notes": "New stock arrival"},
-        {"sku": "BAG004", "event_type": "sale", "quantity_changed": -1, "price_per_unit": 1499.99, "notes": "Premium customer"}
-    ]
-    
-    for event in sample_events:
-        try:
-            product_tracker.record_sale_event(
-                user_id="demo_shopkeeper_001",
-                sku=event["sku"],
-                event_type=event["event_type"],
-                quantity_changed=event["quantity_changed"],
-                price_per_unit=event["price_per_unit"],
-                notes=event["notes"]
-            )
-        except Exception as e:
-            print(f"Event for {event['sku']} already exists or error: {e}")
-            
-    print("Demo data added successfully")
-    
-except Exception as e:
-    print(f"Demo shopkeeper already exists or error: {e}")
+// Check user authentication status
+function checkUserAuth() {
+  const userData = localStorage.getItem('shopkeeper_user');
+  console.log('Checking user auth, userData:', userData);
 
-@app.route('/')
-def index():
-    """Main dashboard page"""
-    return render_template('index.html')
+  if (userData) {
+    try {
+      const user = JSON.parse(userData);
+      console.log('Parsed user data:', user);
 
-@app.route('/login')
-def login():
-    """Login page"""
-    return render_template('login.html')
-
-@app.route('/shopkeeper')
-def shopkeeper_dashboard():
-    """Shopkeeper dashboard page"""
-    return render_template('shopkeeper_dashboard.html')
-
-@app.route('/api/health-stats')
-def health_stats():
-    """Get overall inventory health statistics"""
-    # This would typically come from a database
-    # For demo purposes, we'll return sample data
-    stats = {
-        'total_products': 1250,
-        'dead_stock': 180,
-        'at_risk': 320,
-        'healthy': 750,
-        'rescue_potential': 4200000,  # in INR
-        'upcoming_opportunities': 15
+      if (user && user.user_id) {
+        console.log('User authenticated for:', user.user_id);
+        showLoggedInUser(user);
+        return true;
+      } else {
+        console.error('Invalid user data structure:', user);
+        logout();
+        return false;
+      }
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+      logout();
+      return false;
     }
-    return jsonify(stats)
+  } else {
+    console.log('No user data found, showing logged out interface');
+    return false;
+  }
+}
 
-@app.route('/api/analyze-product', methods=['POST'])
-def analyze_product():
-    """Analyze a single product's health and get recommendations"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        # Extract product data
-        product_data = {
-            'name': data.get('name', ''),
-            'category': data.get('category', ''),
-            'price': float(data.get('price', 0)),
-            'stock_quantity': int(data.get('stock_quantity', 0)),
-            'days_in_stock': int(data.get('days_in_stock', 0)),
-            'sales_velocity': float(data.get('sales_velocity', 0)),
-            'seasonality': data.get('seasonality', 'all_year'),
-            'location': data.get('location', 'mumbai')
-        }
-        
-        try:
-            # Analyze product health
-            health_score = health_analyzer.analyze_health(product_data)
-        except Exception as e:
-            print(f"Health analysis error: {e}")
-            # Fallback health score calculation
-            days_in_stock = product_data.get('days_in_stock', 0)
-            if days_in_stock < 30:
-                health_score = 0.8
-            elif days_in_stock < 90:
-                health_score = 0.6
-            elif days_in_stock < 180:
-                health_score = 0.4
-            else:
-                health_score = 0.2
-        
-        try:
-            # Get location data
-            location_data = location_service.get_location_info(product_data['location'])
-        except Exception as e:
-            print(f"Location service error: {e}")
-            location_data = {'name': product_data['location'], 'region': 'India'}
-        
-        try:
-            # Get festival recommendations
-            festival_result = festival_engine.get_festival_recommendations(
-                product_data, location_data
-            )
-        except Exception as e:
-            print(f"Festival engine error: {e}")
-            festival_result = {'upcoming_festivals': [], 'recommended_festivals': []}
-        
-        try:
-            # Get product-specific festival opportunities
-            product_opportunities = festival_engine.get_product_festival_opportunities(
-                product_data['name'], product_data['location']
-            )
-        except Exception as e:
-            print(f"Product festival opportunities error: {e}")
-            product_opportunities = {'opportunities': [], 'total_opportunities': 0}
-        
-        try:
-            # Get discount recommendations
-            discount_result = discount_calculator.calculate_discount(
-                product_data, health_score, festival_result
-            )
-        except Exception as e:
-            print(f"Discount calculator error: {e}")
-            # Fallback discount calculation
-            price = product_data.get('price', 0)
-            if health_score < 0.3:
-                discount_percent = 40
-            elif health_score < 0.6:
-                discount_percent = 20
-            else:
-                discount_percent = 10
-            
-            discount_result = {
-                'recommended_discount': discount_percent,
-                'new_price': price * (1 - discount_percent / 100),
-                'price_reduction': price * (discount_percent / 100),
-                'expected_revenue': price * (1 - discount_percent / 100) * product_data.get('stock_quantity', 0),
-                'risk_score': (1 - health_score) * 100,
-                'health_status': 'At Risk' if health_score < 0.6 else 'Healthy',
-                'discount_category': 'High' if discount_percent > 30 else 'Medium' if discount_percent > 15 else 'Low',
-                'reasoning': [f'Based on {health_score:.1%} health score, {discount_percent}% discount recommended']
-            }
-        
-        try:
-            # Get bundle recommendations
-            recommended_festival = festival_result.get('recommended_festival')
-            if isinstance(recommended_festival, list) and len(recommended_festival) > 0:
-                festival_name = recommended_festival[0].get('name', None)
-            elif isinstance(recommended_festival, dict):
-                festival_name = recommended_festival.get('name', None)
-            else:
-                festival_name = None
-                
-            bundle_result = bundle_calculator.calculate_bundle_recommendations(
-                product_data,
-                location=product_data['location'],
-                festival=festival_name
-            )
-        except Exception as e:
-            print(f"Bundle calculator error: {e}")
-            bundle_result = {'bundles': [], 'total_bundles': 0}
-        
-        try:
-            # Calculate rescue score
-            rescue_score = health_analyzer.calculate_rescue_score(
-                product_data, festival_result, discount_result
-            )
-        except Exception as e:
-            print(f"Rescue score error: {e}")
-            rescue_score = health_score * 100
-        
-        # Combine results
-        result = {
-            'product': product_data,
-            'health_score': health_score,
-            'health_status': health_analyzer.get_health_status(health_score) if hasattr(health_analyzer, 'get_health_status') else ('Healthy' if health_score > 0.6 else 'At Risk' if health_score > 0.3 else 'Dead'),
-            'discount_recommendations': discount_result,
-            'festival_recommendations': festival_result,
-            'product_festival_opportunities': product_opportunities,
-            'bundle_recommendations': bundle_result,
-            'rescue_score': rescue_score,
-            'location_data': location_data
-        }
-        
-        print(f"Analysis completed successfully. Health score: {health_score}, Discount: {discount_result.get('recommended_discount', 'N/A')}%")
-        return jsonify(result)
-        
-    except Exception as e:
-        print(f"General analyze-product error: {e}")
-        return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
+// Show logged in user interface
+function showLoggedInUser(user) {
+  const loginLink = document.getElementById('loginLink');
+  const userInfo = document.getElementById('userInfo');
+  const userName = document.getElementById('userName');
 
-@app.route('/api/festivals')
-def get_festivals():
-    """Get all upcoming festivals"""
-    location = request.args.get('location', 'mumbai').lower()
-    
-    # Get all upcoming festivals regardless of location
-    festivals = festival_engine.get_upcoming_festivals(location)
-    
-    return jsonify(festivals)
+  if (loginLink) loginLink.style.display = 'none';
+  if (userInfo) userInfo.style.display = 'block';
+  if (userName) userName.textContent = user.shop_name || user.user_id;
+}
 
-@app.route('/api/locations')
-def get_locations():
-    """Get available locations"""
-    locations = list(location_service.indian_cities.keys())
-    return jsonify(locations)
+// Show logged out user interface
+function showLoggedOutUser() {
+  const loginLink = document.getElementById('loginLink');
+  const userInfo = document.getElementById('userInfo');
+  const shopkeeperDashboard = document.getElementById('shopkeeperDashboard');
 
-@app.route('/api/shopkeepers')
-def get_shopkeepers():
-    """Get available shopkeepers for a location"""
-    location = request.args.get('location', 'mumbai').lower()
-    shopkeepers = bundle_calculator.get_available_shopkeepers(location)
-    return jsonify(shopkeepers)
+  if (loginLink) loginLink.style.display = 'block';
+  if (userInfo) userInfo.style.display = 'none';
+  if (shopkeeperDashboard) shopkeeperDashboard.style.display = 'none';
+}
 
-@app.route('/api/create-bundle', methods=['POST'])
-def create_bundle():
-    """Create a custom bundle with multiple shopkeepers"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        primary_product = data.get('primary_product', {})
-        combo_products = data.get('combo_products', [])
-        shopkeepers = data.get('shopkeepers', [])
-        location = data.get('location', 'mumbai')
-        
-        if not primary_product or not combo_products:
-            return jsonify({'error': 'Primary product and combo products are required'}), 400
-        
-        bundle = bundle_calculator.create_custom_bundle(
-            primary_product, 
-            combo_products, 
-            shopkeepers, 
-            location
-        )
-        
-        return jsonify(bundle)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+// Show shopkeeper dashboard
+function showShopkeeperDashboard() {
+  const dashboard = document.getElementById('shopkeeperDashboard');
+  if (dashboard) {
+    dashboard.style.display = 'block';
+    console.log('Shopkeeper dashboard displayed');
 
-@app.route('/api/bundle-recommendations', methods=['POST'])
-def get_bundle_recommendations():
-    """Get bundle recommendations for a product"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        product_data = data.get('product', {})
-        location = data.get('location', 'mumbai')
-        festival = data.get('festival')
-        shopkeeper_id = data.get('shopkeeper_id')
-        
-        recommendations = bundle_calculator.calculate_bundle_recommendations(
-            product_data, 
-            location, 
-            festival, 
-            shopkeeper_id
-        )
-        
-        return jsonify(recommendations)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/all-festivals')
-def get_all_festivals():
-    """Get all festivals with comprehensive information"""
-    try:
-        location = request.args.get('location')
-        sort_by = request.args.get('sort_by', 'days_until')
-        
-        festivals = festival_engine.get_all_festivals(location, sort_by)
-        
-        # Convert numpy types to native Python types
-        for festival in festivals:
-            if isinstance(festival.get('days_until'), (np.integer, np.floating)):
-                festival['days_until'] = int(festival['days_until'])
-        
-        return jsonify(festivals)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-
-@app.route('/api/festival/<festival_key>/insights')
-def get_festival_insights(festival_key):
-    """Get comprehensive insights for a specific festival"""
-    try:
-        location = request.args.get('location')
-        insights = festival_engine.get_festival_insights(festival_key, location)
-        
-        # Convert numpy types to native Python types
-        if isinstance(insights.get('days_until'), (np.integer, np.floating)):
-            insights['days_until'] = int(insights['days_until'])
-        
-        if 'trending_data' in insights and isinstance(insights['trending_data'].get('search_volume'), (np.integer, np.floating)):
-            insights['trending_data']['search_volume'] = int(insights['trending_data']['search_volume'])
-        
-        return jsonify(insights)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/festival-countdown')
-def get_festival_countdown():
-    """Get countdown for all upcoming festivals"""
-    try:
-        location = request.args.get('location', 'mumbai')
-        days_ahead = int(request.args.get('days_ahead', 90))
-        
-        upcoming_festivals = festival_engine.get_upcoming_festivals(location, days_ahead)
-        
-        # Convert numpy types to native Python types
-        for festival in upcoming_festivals:
-            if isinstance(festival.get('days_until'), (np.integer, np.floating)):
-                festival['days_until'] = int(festival['days_until'])
-        
-        return jsonify({
-            'location': location,
-            'days_ahead': days_ahead,
-            'festivals': upcoming_festivals,
-            'total_festivals': len(upcoming_festivals)
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/festival-categories')
-def get_festival_categories():
-    """Get all festival categories with counts"""
-    try:
-        location = request.args.get('location')
-        all_festivals = festival_engine.get_all_festivals(location)
-        
-        categories = {}
-        for festival in all_festivals:
-            category = festival['category']
-            if category not in categories:
-                categories[category] = {
-                    'name': category.replace('_', ' ').title(),
-                    'count': 0,
-                    'festivals': []
-                }
-            categories[category]['count'] += 1
-            categories[category]['festivals'].append({
-                'name': festival['name'],
-                'days_until': int(festival['days_until']) if isinstance(festival['days_until'], (np.integer, np.floating)) else festival['days_until'],
-                'urgency_level': festival['urgency_level']
-            })
-        
-        return jsonify(list(categories.values()))
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/product-festival-opportunities', methods=['POST'])
-def get_product_festival_opportunities():
-    """Get specific festival opportunities for a product"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        product_name = data.get('product_name', '')
-        location = data.get('location', 'mumbai')
-        
-        if not product_name:
-            return jsonify({'error': 'Product name is required'}), 400
-        
-        opportunities = festival_engine.get_product_festival_opportunities(product_name, location)
-        
-        return jsonify(opportunities)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/seller-recommendations', methods=['POST'])
-def get_seller_recommendations():
-    """Get local seller recommendations for bundle creation"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        primary_product = data.get('primary_product', {})
-        combo_products = data.get('combo_products', [])
-        location = data.get('location', 'mumbai')
-        
-        if not primary_product:
-            return jsonify({'error': 'Primary product is required'}), 400
-        
-        recommendations = bundle_calculator.get_local_seller_recommendations(
-            primary_product, 
-            combo_products, 
-            location
-        )
-        
-        return jsonify(recommendations)
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Authentication API Endpoints
-@app.route('/api/login', methods=['POST'])
-def login_api():
-    """Authenticate shopkeeper login"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        user_id = data.get('user_id')
-        password = data.get('password')
-        
-        if not user_id or not password:
-            return jsonify({'error': 'User ID and password are required'}), 400
-        
-        result = product_tracker.authenticate_shopkeeper(user_id, password)
-        
-        if result['success']:
-            session['shopkeeper_logged_in'] = True
-            return jsonify(result)
-        else:
-            return jsonify(result), 401
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Product Tracking API Endpoints
-@app.route('/api/register-shopkeeper', methods=['POST'])
-def register_shopkeeper():
-    """Register a new shopkeeper"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        user_id = data.get('user_id')
-        shop_name = data.get('shop_name')
-        password = data.get('password')
-        email = data.get('email')
-        phone = data.get('phone')
-        location = data.get('location')
-        
-        if not user_id or not shop_name or not password:
-            return jsonify({'error': 'User ID, shop name, and password are required'}), 400
-        
-        if not email:
-            return jsonify({'error': 'Email is required'}), 400
-        
-        if not phone:
-            return jsonify({'error': 'Phone is required'}), 400
-            
-        if not location:
-            return jsonify({'error': 'Location is required'}), 400
-        
-        # Validate email format (must be Gmail)
-        if not email.endswith('@gmail.com') or '@' not in email:
-            return jsonify({'error': 'Email must be a valid Gmail address'}), 400
-        
-        # Validate phone format (digits only)
-        if not phone.isdigit() or len(phone) < 10 or len(phone) > 15:
-            return jsonify({'error': 'Phone must contain only digits (10-15 digits)'}), 400
-        
-        success = product_tracker.register_shopkeeper(user_id, shop_name, password, email, phone, location)
-        
-        if success:
-            return jsonify({'success': True, 'message': 'Shopkeeper registered successfully'})
-        else:
-            return jsonify({'error': 'Failed to register shopkeeper'}), 500
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/add-product', methods=['POST'])
-def add_product():
-    """Add a new product to shopkeeper's inventory"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        user_id = data.get('user_id')
-        sku = data.get('sku')
-        product_name = data.get('product_name')
-        category = data.get('category')
-        initial_quantity = data.get('initial_quantity')
-        
-        if not all([user_id, sku, product_name, category, initial_quantity]):
-            return jsonify({'error': 'All fields are required'}), 400
-        
-        result = product_tracker.add_product(user_id, sku, product_name, category, initial_quantity)
-        
-        if result['success']:
-            return jsonify(result)
-        else:
-            return jsonify(result), 400
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/record-sale-event', methods=['POST'])
-def record_sale_event():
-    """Record a sale, restock, or adjustment event"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        user_id = data.get('user_id')
-        sku = data.get('sku')
-        event_type = data.get('event_type')  # 'sale', 'restock', 'adjustment'
-        quantity_changed = data.get('quantity_changed')
-        price_per_unit = data.get('price_per_unit')
-        notes = data.get('notes')
-        
-        if not all([user_id, sku, event_type, quantity_changed]):
-            return jsonify({'error': 'User ID, SKU, event type, and quantity are required'}), 400
-        
-        result = product_tracker.record_sale_event(
-            user_id, sku, event_type, quantity_changed, price_per_unit, notes
-        )
-        
-        if result['success']:
-            return jsonify(result)
-        else:
-            return jsonify(result), 400
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/shopkeeper-products/<user_id>')
-def get_shopkeeper_products(user_id):
-    """Get all products for a shopkeeper"""
-    try:
-        products = product_tracker.get_shopkeeper_products(user_id)
-        return jsonify(products)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/product-history/<user_id>')
-def get_product_history(user_id):
-    """Get sale/update history for products"""
-    try:
-        sku = request.args.get('sku')
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        
-        history = product_tracker.get_product_history(user_id, sku or None, start_date or None, end_date or None)
-        return jsonify(history)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/export-history/<user_id>')
-def export_history(user_id):
-    """Export product history to CSV"""
-    try:
-        sku = request.args.get('sku')
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
-        
-        filename = product_tracker.export_history_csv(user_id, sku or None, start_date or None, end_date or None)
-        
-        if filename:
-            return jsonify({
-                'success': True,
-                'filename': filename,
-                'download_url': f'/download/{filename}'
-            })
-        else:
-            return jsonify({'error': 'No data to export'}), 400
-            
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/shopkeeper-stats/<user_id>')
-def get_shopkeeper_stats(user_id):
-    """Get summary statistics for a shopkeeper"""
-    try:
-        stats = product_tracker.get_shopkeeper_stats(user_id)
-        return jsonify(stats)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/download/<path:filename>')
-def download_file(filename):
-    """Download exported files"""
-    try:
-        return send_from_directory('exports', filename, as_attachment=True)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 404
-
-
-
-# -------------------------------------Photogenix--------------------------------------
-from flask import Flask, render_template, request, send_from_directory, jsonify
-import os
-from werkzeug.utils import secure_filename
-from PIL import Image, ImageEnhance, ImageFilter, ImageOps
-import io
-from models.birefnet_bg_removal import remove_background_birefnet, run_birefnet
-import numpy as np
-import cv2
-import google.generativeai as genai
-from dotenv import load_dotenv
-import json
-import re
-load_dotenv()
-
-
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['PROCESSED_FOLDER'] = 'processed'
-
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
-
-# Configure Google Generative AI if API key is available
-if os.environ.get('GOOGLE_API_KEY'):
-    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-else:
-    print("Warning: GOOGLE_API_KEY not found. Some AI features may not work.")
-
-@app.route('/photogenix')
-def photogenix():
-    return render_template('indexphoto.html')
-
-@app.route('/upload', methods=['POST'])
-def upload():
-    # Handle file upload
-    files = request.files.getlist('images')
-    saved_files = []
-    for file in files:
-        filename = secure_filename(file.filename)
-        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(path)
-        saved_files.append(filename)
-    return jsonify({'uploaded': saved_files})
-
-@app.route('/process/background_removal', methods=['POST'])
-def background_removal_real():
-    file = request.files.get('image')
-    if not file:
-        return jsonify({'error': 'No image uploaded'}), 400
-    filename = secure_filename(file.filename)
-    input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(input_path)
-    # Open image
-    img = Image.open(input_path).convert('RGBA')
-    # Run U2Net to get mask
-    mask = run_u2net(img)
-    # Ensure mask is single channel, same size as img
-    mask = mask.resize(img.size, Image.BILINEAR).convert('L')
-    # Apply mask as alpha channel
-    img.putalpha(mask)
-    processed_filename = 'bgremoved_' + filename
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    img.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
-
-@app.route('/process/enhance', methods=['POST'])
-def enhance():
-    file = request.files.get('image')
-    if not file:
-        return jsonify({'error': 'No image uploaded'}), 400
-    filename = secure_filename(file.filename)
-    input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(input_path)
-    # Open image and convert to RGB for enhancement
-    img = Image.open(input_path).convert('RGB')
-    # Stronger enhancement: much higher brightness, contrast, color, and sharpness
-    img = ImageEnhance.Brightness(img).enhance(1.25)
-    img = ImageEnhance.Contrast(img).enhance(1.35)
-    img = ImageEnhance.Color(img).enhance(1.35)
-    img = ImageEnhance.Sharpness(img).enhance(2.0)
-    # Save processed image as PNG
-    processed_filename = 'enhanced_' + filename.rsplit('.', 1)[0] + '.png'
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    img.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
-
-@app.route('/process/replace_background', methods=['POST'])
-def replace_background():
-    file = request.files.get('image')
-    bg_name = request.form.get('background', 'white.jpg')
-    if not file:
-        return jsonify({'error': 'No image uploaded'}), 400
-    filename = secure_filename(file.filename)
-    input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(input_path)
-    img = Image.open(input_path).convert('RGBA')
-    # Run BiRefNet to get mask
-    mask = run_birefnet(img)
-    mask = mask.resize(img.size, Image.BILINEAR).convert('L')
-    # Load selected background
-    bg_path = os.path.join('static', 'backgrounds', bg_name)
-    if not os.path.exists(bg_path):
-        bg_path = os.path.join('static', 'backgrounds', 'white.jpg')
-    bg = Image.open(bg_path).convert('RGB').resize(img.size)
-    # Composite product onto background
-    product_rgba = img.copy()
-    product_rgba.putalpha(mask)
-    composite = Image.alpha_composite(bg.convert('RGBA'), product_rgba)
-    # Add drop shadow (OpenCV)
-    arr = np.array(composite)
-    shadow = cv2.GaussianBlur(arr[:,:,3], (21,21), 10)
-    arr[:,:,3] = np.maximum(arr[:,:,3], shadow)
-    composite = Image.fromarray(arr)
-    # Enhance color/tone
-    composite = ImageEnhance.Brightness(composite).enhance(1.08)
-    composite = ImageEnhance.Contrast(composite).enhance(1.12)
-    composite = ImageEnhance.Color(composite).enhance(1.15)
-    processed_filename = 'bgreplace_' + filename.rsplit('.', 1)[0] + '.png'
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    composite.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
-
-@app.route('/process/crop_resize', methods=['POST'])
-def crop_resize():
-    file = request.files.get('image')
-    platform = request.form.get('platform', 'meesho').lower()
-    if not file:
-        return jsonify({'error': 'No image uploaded'}), 400
-    filename = secure_filename(file.filename)
-    input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(input_path)
-    img = Image.open(input_path).convert('RGB')
-    # Define platform sizes
-    sizes = {
-        'meesho': (1024, 1365),
-        'meesho4x4': (1000, 1000),
-        'amazon': (1000, 1000),
-        'instagram': (1080, 1080),
-        'shopify': (2048, 2048),
-        'flipkart': (2000, 2000),
+    // Only load data if user is logged in
+    const userData = localStorage.getItem('shopkeeper_user');
+    if (userData) {
+      setTimeout(() => {
+        loadShopkeeperStats();
+        loadProducts();
+        loadHistory();
+      }, 100);
     }
-    size = sizes.get(platform, sizes['meesho'])
-    # Center crop to aspect ratio, then resize
-    w, h = img.size
-    target_w, target_h = size
-    target_ratio = target_w / target_h
-    img_ratio = w / h
-    if img_ratio > target_ratio:
-        # Image is wider than target: crop width
-        new_w = int(h * target_ratio)
-        left = (w - new_w) // 2
-        top = 0
-        right = left + new_w
-        bottom = h
-    else:
-        # Image is taller than target: crop height
-        new_h = int(w / target_ratio)
-        left = 0
-        top = (h - new_h) // 2
-        right = w
-        bottom = top + new_h
-    img_cropped = img.crop((left, top, right, bottom)).resize(size, Image.LANCZOS)
-    processed_filename = f'cropped_{platform}_' + filename.rsplit('.', 1)[0] + '.png'
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    img_cropped.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
+  } else {
+    console.error('Shopkeeper dashboard element not found');
+  }
+}
 
-@app.route('/process/batch', methods=['POST'])
-def batch_process():
-    # Stub: Replace with real batch processing logic
-    return jsonify({'status': 'Batch processing stub'})
+// Logout function
+function logout() {
+  localStorage.removeItem('shopkeeper_user');
+  showLoggedOutUser();
+  window.location.href = '/';
+}
 
-import numpy as np
-from PIL import Image
-import os
+// Shopkeeper tab functionality
+function showShopkeeperTab(tabName) {
+  // Hide all tab contents
+  const tabContents = document.querySelectorAll('.shopkeeper-tab-content');
+  tabContents.forEach(content => content.classList.remove('active'));
 
-def get_dominant_color(img):
-    img = img.convert('RGB').resize((64, 64))
-    arr = np.array(img)
-    arr = arr.reshape((-1, 3))
-    arr = arr[(arr < 250).any(axis=1)]  # Ignore near-white
-    if len(arr) == 0:
-        return (255, 255, 255)
-    color = tuple(np.mean(arr, axis=0).astype(int))
-    return color
+  // Remove active class from all tab buttons
+  const tabButtons = document.querySelectorAll('.tab-button');
+  tabButtons.forEach(button => button.classList.remove('active'));
 
-def pick_best_background(product_img, backgrounds_dir='static/backgrounds/'):
-    dominant = get_dominant_color(product_img)
-    best_bg = None
-    best_score = -1
-    for bg_name in os.listdir(backgrounds_dir):
-        if not (bg_name.endswith('.jpg') or bg_name.endswith('.png') or bg_name.endswith('.jpeg')):
-            continue
-        bg_path = os.path.join(backgrounds_dir, bg_name)
-        bg_img = Image.open(bg_path).resize(product_img.size)
-        bg_color = get_dominant_color(bg_img)
-        score = np.linalg.norm(np.array(dominant) - np.array(bg_color))
-        if score > best_score:
-            best_score = score
-            best_bg = bg_path
-    return best_bg
+  // Show selected tab content
+  document.getElementById(tabName).classList.add('active');
 
-@app.route('/process/make_professional', methods=['POST'])
-def make_professional():
-    file = request.files.get('image')
-    bg_choice = request.form.get('background', 'white.jpg')
-    preset = request.form.get('preset', 'clean_studio')
-    if not file:
-        return jsonify({'error': 'No image uploaded'}), 400
-    filename = secure_filename(file.filename)
-    input_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(input_path)
-    # Open image
-    img = Image.open(input_path).convert('RGBA')
-    # Run BiRefNet to get mask
-    mask = run_birefnet(img)
-    mask = mask.resize(img.size, Image.BILINEAR).convert('L')
-    # Load background
-    bg_path = pick_best_background(img)
-    if not os.path.exists(bg_path):
-        bg_path = os.path.join('static', 'backgrounds', 'white.jpg')
-    bg = Image.open(bg_path).convert('RGB').resize(img.size)
-    # Composite product onto background
-    product_rgba = img.copy()
-    product_rgba.putalpha(mask)
-    composite = Image.alpha_composite(bg.convert('RGBA'), product_rgba)
-    # Add drop shadow (OpenCV)
-    arr = np.array(composite)
-    shadow = cv2.GaussianBlur(arr[:,:,3], (21,21), 10)
-    arr[:,:,3] = np.maximum(arr[:,:,3], shadow)
-    composite = Image.fromarray(arr)
-    # Enhance color/tone
-    composite = ImageEnhance.Brightness(composite).enhance(1.08)
-    composite = ImageEnhance.Contrast(composite).enhance(1.12)
-    composite = ImageEnhance.Color(composite).enhance(1.15)
-    # Style presets
-    if preset == 'luxury_matte':
-        composite = ImageOps.colorize(composite.convert('L'), black='#222', white='#faf8ff')
-    elif preset == 'minimalist_white':
-        composite = ImageEnhance.Brightness(composite).enhance(1.15)
-        composite = ImageEnhance.Color(composite).enhance(1.05)
-    # Save processed image
-    processed_filename = 'professional_' + filename.rsplit('.', 1)[0] + '.png'
-    processed_path = os.path.join(app.config['PROCESSED_FOLDER'], processed_filename)
-    composite.save(processed_path, 'PNG')
-    return jsonify({'processed_url': f'/processed/{processed_filename}'})
+  // Add active class to clicked button
+  event.target.classList.add('active');
+}
 
-@app.route('/process/creative_content', methods=['POST'])
-def creative_content():
-    file = request.files.get('image')
-    if not file:
-        return jsonify({'error': 'No image uploaded'}), 400
+// Load health statistics
+async function loadHealthStats() {
+  try {
+    const response = await fetch('/api/health-stats');
+    const data = await response.json();
 
-    image = Image.open(file.stream).convert('RGB')
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    prompt = (
-        "Given this product image, respond ONLY with a valid JSON object with the following fields: "
-        "title, description, bullets (a list of 3 bullet points), tags (a list), and caption. "
-        "Do not include any explanation, markdown, or text outside the JSON. Example:\n"
-        "{\n"
-        '  \"title\": \"Minimalist White Sneaker for Everyday Comfort\",\n'
-        '  \"description\": \"A clean, classic white sneaker...\",\n'
-        '  \"bullets\": [\"Lightweight and breathable\", \"All-day comfort\", \"Sleek design\"],\n'
-        '  \"tags\": [\"#WhiteSneakers\", \"#ComfortWear\"],\n'
-        '  \"caption\": \"Step into style and comfort! #SneakerLove\"\n'
-        "}\n"
-    )
-    response = model.generate_content([prompt, image])
-    text = response.text.strip()
-    try:
-        # Remove markdown code block if present
-        text_clean = re.sub(r"^```json|^```|```$", "", text, flags=re.MULTILINE).strip()
-        # Extract the first JSON object from the cleaned text
-        match = re.search(r'\{.*\}', text_clean, re.DOTALL)
-        if match:
-            json_str = match.group(0)
-            data = json.loads(json_str)
-            return jsonify(data)
-        else:
-            raise ValueError("No JSON object found in response.")
-    except Exception as e:
-        return jsonify({'error': 'Could not parse Gemini response', 'raw': text, 'exception': str(e)})
+    document.getElementById('totalProducts').textContent = data.total_products?.toLocaleString() || '-';
+    document.getElementById('deadStock').textContent = data.dead_stock?.toLocaleString() || '-';
+    document.getElementById('atRisk').textContent = data.at_risk?.toLocaleString() || '-';
+    document.getElementById('healthy').textContent = data.healthy?.toLocaleString() || '-';
+    document.getElementById('rescuePotential').textContent = data.rescue_potential ?
+      `₹${(data.rescue_potential / 100000).toFixed(1)}L` : '-';
+  } catch (error) {
+    console.error('Error loading health stats:', error);
+  }
+}
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+// Load regional festivals based on location
+async function loadRegionalFestivals() {
+  try {
+    const location = document.getElementById('locationSelect').value;
+    const sortBy = document.getElementById('festivalSortBy')?.value || 'days_until';
 
-@app.route('/processed/<filename>')
-def processed_file(filename):
-    return send_from_directory(app.config['PROCESSED_FOLDER'], filename)
+    if (!location) {
+      document.getElementById('regionalFestivalsList').innerHTML =
+        '<p class="no-data">Please select a location to view regional festivals.</p>';
+      return;
+    }
 
-@app.route('/get-in-touch')
-def get_in_touch():
-    return render_template('get_in_touch.html')
+    const url = `/api/all-festivals?location=${location}&sort_by=${sortBy}`;
+    const response = await fetch(url);
+    const festivals = await response.json();
 
-@app.route('/campaign-generator')
-def campaign_generator():
-    return render_template('campaign_generator.html')
+    displayRegionalFestivals(festivals);
+  } catch (error) {
+    console.error('Error loading regional festivals:', error);
+  }
+}
 
-@app.route('/api/generate_campaign_content', methods=['POST'])
-def generate_campaign_content():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
+// Display regional festivals
+function displayRegionalFestivals(festivals) {
+  const container = document.getElementById('regionalFestivalsList');
 
-        festival = data.get('festival', 'a special occasion')
-        region = data.get('region', 'your area')
-        campaign_type = data.get('campaign_type', 'exciting offers')
-        shop_name = data.get('shop_name', 'our shop')
-        shop_address = data.get('shop_address', '')
-        shop_phone = data.get('shop_phone', '')
-        valid_till = data.get('valid_till', '')
-        shop_insta = data.get('shop_insta', '')
-        shop_fb = data.get('shop_fb', '')
+  container.innerHTML = '';
 
-        # Construct a detailed prompt for Gemini
-        prompt = f"""
-        You are a creative marketing assistant. Generate a festive campaign for a shop.
-        The campaign should be for {shop_name} (located at {shop_address} if provided).
-        It is for the {festival} festival in the {region} region.
-        The campaign type is a {campaign_type}.
+  if (!festivals || festivals.length === 0) {
+    container.innerHTML = '<p class="no-data">No festivals found for this location. Please select a different location or check back later.</p>';
+    return;
+  }
 
-        Generate the following JSON structure. Ensure the output is ONLY a valid JSON object.
-        No additional text, markdown backticks, or explanations outside the JSON.
+  // Filter to show festivals within 7 months (210 days) and prioritize regional ones
+  const filteredFestivals = festivals.filter(festival =>
+    festival.days_until <= 210 &&
+    festival.days_until >= 0
+  );
 
-        {{
-            "banner_slogan": "A catchy, festive slogan for the main banner (e.g., 'Diwali Sparkle Sale!'). Include relevant emojis.",
-            "main_message": "A compelling, short paragraph for the campaign message, incorporating the festival and region.",
-            "offer_details": "A clear and enticing description of the offer, based on '{campaign_type}'. Be specific and highlight benefits.",
-            "call_to_action": "A strong and urgent call to action (e.g., 'Shop Now!', 'Grab Yours Today!').",
-            "social_media_caption": "A short, engaging caption for social media (e.g., Instagram/Facebook), including relevant hashtags and emojis. Mention the shop name if possible.",
-            "additional_tips": [
-                "1-2 short, actionable tips for the shopkeeper to promote this specific campaign (e.g., 'Highlight best-selling items related to the offer.')."
-            ]
-        }}
-        """
+  // Sort: regional festivals first, then by days until
+  const sortedFestivals = filteredFestivals.sort((a, b) => {
+    if (a.is_regional && !b.is_regional) return -1;
+    if (!a.is_regional && b.is_regional) return 1;
+    return a.days_until - b.days_until;
+  });
 
-        # Initialize Gemini model
-        model = genai.GenerativeModel("gemini-1.5-flash") # Using gemini-pro for text generation
-        response = model.generate_content(prompt)
-        raw_text = response.text.strip()
+  if (sortedFestivals.length === 0) {
+    container.innerHTML = '<p class="no-data">No festivals found for this location within the next 7 months. Please select a different location or check back later.</p>';
+    return;
+  }
 
-        # Attempt to parse the JSON response. Gemini sometimes wraps it in markdown.
-        try:
-            # Remove markdown code block if present
-            cleaned_text = re.sub(r"^```json|^```|```$", "", raw_text, flags=re.MULTILINE).strip()
-            campaign_data = json.loads(cleaned_text)
-        except json.JSONDecodeError as e:
-            print(f"JSON Decode Error: {e}")
-            print(f"Raw Gemini response: {raw_text}")
-            return jsonify({'error': 'Failed to parse Gemini response', 'raw_response': raw_text, 'exception': str(e)}), 500
+  sortedFestivals.forEach(festival => {
+    const festivalCard = document.createElement('div');
+    festivalCard.className = 'festival-card';
+    // Add data-category for filtering
+    festivalCard.setAttribute('data-category', (festival.category || '').toLowerCase().replace(/\s+/g, '_'));
 
-        return jsonify(campaign_data)
+    const daysUntil = festival.days_until;
+    const urgencyClass = getUrgencyClass(daysUntil);
 
-    except Exception as e:
-        print(f"Error in generate_campaign_content: {e}")
-        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+    // Determine badge type
+    let badgeHtml = '';
+    if (festival.regions && festival.regions.includes('all_india')) {
+      badgeHtml = '<span class="regional-badge national"><i class="fas fa-flag"></i> National</span>';
+    } else if (festival.is_regional) {
+      badgeHtml = '<span class="regional-badge"><i class="fas fa-map-marker-alt"></i> Regional</span>';
+    }
+
+    festivalCard.innerHTML = `
+            <div class="festival-header ${urgencyClass}">
+                <h4>${festival.name}</h4>
+                <span class="festival-date">${formatDate(festival.date)}</span>
+                ${badgeHtml}
+            </div>
+            <div class="festival-body">
+                <p class="festival-description">${festival.description || 'Festival'}</p>
+                <div class="festival-meta">
+                    <span class="days-until">${daysUntil === 'N/A' ? 'Date TBD' : `${daysUntil} days away`}</span>
+                    <span class="festival-category">${festival.category || 'Cultural'}</span>
+                </div>
+                <div class="shopping-period">
+                    <i class="fas fa-shopping-cart"></i>
+                    Shopping period: ${festival.shopping_period || 15} days
+                </div>
+                <div class="festival-actions">
+                    <button onclick="showFestivalInsights('${festival.key}')" class="btn-insights">
+                        <i class="fas fa-lightbulb"></i> Insights
+                    </button>
+                </div>
+            </div>
+        `;
+
+    container.appendChild(festivalCard);
+  });
+  // Apply filter after rendering
+  filterFestivals();
+}
+
+
+
+// Handle product analysis
+async function handleProductAnalysis(event) {
+  event.preventDefault();
+
+  const formData = new FormData(event.target);
+  const productData = {
+    name: formData.get('name'),
+    category: formData.get('category'),
+    price: parseFloat(formData.get('price')),
+    stock_quantity: parseInt(formData.get('stock_quantity')),
+    days_in_stock: parseInt(formData.get('days_in_stock')),
+    sales_velocity: parseFloat(formData.get('sales_velocity'))
+  };
+
+  try {
+    const response = await fetch('/api/analyze-product', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(productData)
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      displayResults(result);
+    } else {
+      alert('Error: ' + (result.error || 'Failed to analyze product'));
+    }
+  } catch (error) {
+    console.error('Error analyzing product:', error);
+    alert('Error analyzing product. Please try again.');
+  }
+}
+
+// Display analysis results
+function displayResults(result) {
+  document.getElementById('resultsSection').style.display = 'block';
+
+  // Display health metrics
+  const healthScore = Math.round(result.health_score * 100);
+  document.getElementById('healthScoreDisplay').textContent = `${healthScore}%`;
+  document.getElementById('healthStatusDisplay').textContent = result.discount_recommendations.health_status || result.health_status;
+  document.getElementById('stockAgeDisplay').textContent = `${result.product.days_in_stock} days`;
+  document.getElementById('stockQuantityDisplay').textContent = `${result.product.stock_quantity} units`;
+  document.getElementById('salesVelocityDisplay').textContent = `${result.product.sales_velocity} units/day`;
+
+  // Display discount calculator
+  const originalPrice = result.product.price;
+  const discountPercentage = result.discount_recommendations.recommended_discount;
+  const discountedPrice = result.discount_recommendations.new_price;
+  const savings = result.discount_recommendations.price_reduction;
+  const expectedRevenue = result.discount_recommendations.expected_revenue;
+  const riskScore = result.discount_recommendations.risk_score;
+
+  document.getElementById('originalPrice').textContent = `₹${originalPrice.toLocaleString()}`;
+  document.getElementById('recommendedDiscount').textContent = `${discountPercentage}%`;
+  document.getElementById('discountedPrice').textContent = `₹${discountedPrice.toLocaleString()}`;
+  document.getElementById('totalSavings').textContent = `₹${savings.toLocaleString()}`;
+  document.getElementById('expectedRevenue').textContent = `₹${expectedRevenue.toLocaleString()}`;
+  document.getElementById('riskScoreDisplay').textContent = `${riskScore}`;
+
+  // Display discount strategy reasoning from Gemini
+  const discountStrategyText = result.discount_recommendations.reasoning && result.discount_recommendations.reasoning.length > 0
+    ? result.discount_recommendations.reasoning[0] // Assuming 'reasoning' is an array with one string
+    : 'No specific discount strategy reasoning provided by Gemini.';
+  document.getElementById('discountStrategy').textContent = discountStrategyText;
+
+
+  // Display sales strategies from Gemini
+  displaySalesStrategies(result.sales_strategies);
+
+
+  // Display festival recommendations
+  displayFestivalRecommendations(result.festival_recommendations);
+
+  // Display product-specific festival opportunities
+  displayProductFestivalOpportunities(result.product_festival_opportunities);
+
+  // Scroll to results
+  document.getElementById('resultsSection').scrollIntoView({
+    behavior: 'smooth'
+  });
+}
+
+// NEW FUNCTION: Display sales strategies generated by Gemini
+function displaySalesStrategies(strategies) {
+    // IMPORTANT: Make sure your HTML has an element with id="salesStrategiesContainer"
+    const container = document.getElementById('salesStrategiesContainer'); 
     
-@app.route('/logout')
-def logout():
-    session.pop('shopkeeper_logged_in', None)
-    return redirect(url_for('index'))
+    // Clear previous content
+    container.innerHTML = ''; 
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8050))
-    app.run(host="0.0.0.0", port=port)
+    // Debugging logs (can be removed once confirmed working)
+    console.log("displaySalesStrategies received:", strategies);
+    console.log("Type of strategies:", typeof strategies);
+    console.log("Is strategies an array?", Array.isArray(strategies));
+
+    if (!strategies || strategies.length === 0) {
+        container.innerHTML = '<p class="no-data">No sales strategies generated by Gemini for this product.</p>';
+        console.log("No strategies found or strategies is empty.");
+        return;
+    }
+
+    // Check if strategies is an array (which it should be based on your Python backend)
+    if (Array.isArray(strategies)) {
+         strategies.forEach((strategyObj, index) => { 
+            const strategyCard = document.createElement('div');
+            strategyCard.classList.add('sales-strategy-card'); // Class for individual card styling
+
+            // Extract name and description from the object
+            const strategyName = strategyObj.name || `Strategy ${index + 1}`;
+            const strategyDescription = strategyObj.description || 'No description provided.';
+
+            strategyCard.innerHTML = `
+                <h4><i class="fas fa-lightbulb"></i> ${strategyName}</h4>
+                <p>${strategyDescription}</p>
+            `;
+            container.appendChild(strategyCard);
+        });
+        /*console.log("Strategies displayed as cards.");
+        const ul = document.createElement('ul');
+        ul.classList.add('sales-strategy-list'); // Add a class for styling if desired
+        strategies.forEach((strategyObj, index) => { // 'strategyObj' now correctly represents the object {name, description}
+            const li = document.createElement('li');
+            li.classList.add('sales-strategy-item'); // Add a class for styling if desired
+
+            // Extract name and description from the object
+            const strategyName = strategyObj.name || `Strategy ${index + 1}`;
+            const strategyDescription = strategyObj.description || 'No description provided.';
+
+            li.innerHTML = `<strong>${strategyName}:</strong> ${strategyDescription}`;
+            ul.appendChild(li);
+        });
+        container.appendChild(ul);
+        console.log("Strategies displayed as a list of objects.");
+        */
+    } else {
+        // Fallback for unexpected format (e.g., single string)
+        console.warn("Unexpected format for sales strategies, displaying as raw text.");
+        container.innerHTML = `<p>${strategies}</p>`;
+    }
+}
+
+
+// Display festival recommendations
+function displayFestivalRecommendations(festivalData) {
+  const container = document.getElementById('festivalRecommendations');
+  container.innerHTML = '';
+
+  if (!festivalData || !festivalData.recommended_festivals) {
+    container.innerHTML = '<p class="no-data">No festival opportunities found.</p>';
+    return;
+  }
+
+  festivalData.recommended_festivals.forEach(festival => {
+    const festivalItem = document.createElement('div');
+    festivalItem.className = 'recommendation-item festival';
+    festivalItem.innerHTML = `
+            <div class="recommendation-header">
+                <h4>${festival.name}</h4>
+                <span class="relevance-score">${Math.round(festival.relevance_score * 100)}% relevant</span>
+            </div>
+            <p>${festival.description || 'Great opportunity for this product category'}</p>
+            <div class="festival-details">
+                <span class="date">${formatDate(festival.date)}</span>
+                <span class="shopping-period">${festival.shopping_period} days shopping period</span>
+            </div>
+        `;
+    container.appendChild(festivalItem);
+  });
+}
+
+// Display product-specific festival opportunities
+function displayProductFestivalOpportunities(opportunitiesData) {
+  const container = document.getElementById('festivalRecommendations');
+
+  if (!opportunitiesData || !opportunitiesData.opportunities || opportunitiesData.opportunities.length === 0) {
+    if (container.innerHTML === '') {
+      container.innerHTML = '<p class="no-data">No product-specific festival opportunities found.</p>';
+    }
+    return;
+  }
+
+  // Clear existing content
+  container.innerHTML = '';
+
+  // Add header
+  const header = document.createElement('div');
+  header.className = 'opportunities-header';
+  header.innerHTML = `
+        <h4><i class="fas fa-calendar-check"></i> Best Festivals to Sell "${opportunitiesData.product_name}"</h4>
+        <p>${opportunitiesData.total_opportunities} opportunities found for your product</p>
+    `;
+  container.appendChild(header);
+
+  // Display opportunities
+  opportunitiesData.opportunities.forEach(opportunity => {
+    const opportunityItem = document.createElement('div');
+    opportunityItem.className = 'recommendation-item festival';
+
+    opportunityItem.innerHTML = `
+            <div class="recommendation-header">
+                <h4>${opportunity.festival_name}</h4>
+            </div>
+                            <div class="opportunity-details">
+                <p class="promotion-reason"><strong>Why/How to Promote:</strong> ${opportunity.promotion_reason}</p>
+                <div class="festival-meta">
+                    <span class="date"><i class="fas fa-calendar"></i> ${formatDate(opportunity.date)}</span>
+                    <span class="days-until"><i class="fas fa-clock"></i> ${opportunity.days_until} days away</span>
+                    ${opportunity.is_regional ? '<span class="regional-badge"><i class="fas fa-map-marker-alt"></i> Regional</span>' : ''}
+                </div>
+                ${opportunity.trending_keywords.length > 0 ? `
+                    <div class="trending-keywords">
+                        <strong>Trending Keywords:</strong>
+                        ${opportunity.trending_keywords.map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    container.appendChild(opportunityItem);
+  });
+
+  // Add summary
+  if (opportunitiesData.regional_opportunities.length > 0) {
+    const summary = document.createElement('div');
+    summary.className = 'opportunities-summary';
+    summary.innerHTML = `
+            <p><strong>Regional Opportunities:</strong> ${opportunitiesData.regional_opportunities.length} festivals specific to your location</p>
+            <p><strong>National Opportunities:</strong> ${opportunitiesData.national_opportunities.length} festivals across India</p>
+        `;
+    container.appendChild(summary);
+  }
+}
+
+// Display discount recommendations
+function displayDiscountRecommendations(discountData) {
+  const container = document.getElementById('discountRecommendations');
+  container.innerHTML = '';
+
+  if (!discountData) {
+    container.innerHTML = '<p class="no-data">No discount recommendations available.</p>';
+    return;
+  }
+
+  const discountItem = document.createElement('div');
+  discountItem.className = 'recommendation-item discount';
+  discountItem.innerHTML = `
+        <div class="recommendation-header">
+            <h4>Smart Discount Strategy</h4>
+            <span class="discount-percentage">${Math.round(discountData.recommended_discount * 100)}%</span>
+        </div>
+        <p>${discountData.strategy || 'Optimized discount based on product health and market conditions'}</p>
+        <div class="discount-details">
+            <span class="original-price">Original: ₹${discountData.original_price?.toLocaleString()}</span>
+            <span class="discounted-price">Discounted: ₹${discountData.discounted_price?.toLocaleString()}</span>
+            <span class="savings">Savings: ₹${discountData.savings?.toLocaleString()}</span>
+        </div>
+    `;
+  container.appendChild(discountItem);
+}
+
+// Display bundle recommendations
+function displayBundleRecommendations(bundleData) {
+  const container = document.getElementById('bundleRecommendations');
+  container.innerHTML = '';
+
+  if (!bundleData || !bundleData.recommendations || bundleData.recommendations.length === 0) {
+    container.innerHTML = '<p class="no-data">No bundle opportunities found.</p>';
+    return;
+  }
+
+  bundleData.recommendations.forEach(bundle => {
+    const bundleItem = document.createElement('div');
+    bundleItem.className = 'recommendation-item bundle';
+    bundleItem.innerHTML = `
+            <div class="recommendation-header">
+                <h4>${bundle.bundle_type === 'festival' ? bundle.festival : bundle.season} Bundle</h4>
+                <span class="bundle-score">${Math.round(bundleData.bundle_score)}% bundle score</span>
+            </div>
+            <div class="bundle-options">
+                <div class="same-shop-bundles">
+                    <h5>Same Shop Bundles:</h5>
+                    ${bundle.same_shop_bundles.map(item => `
+                        <div class="bundle-option">
+                            <span class="product">${item.product.replace('_', ' ')}</span>
+                            <span class="discount">${Math.round(item.discount * 100)}% off</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="cross-shop-bundles">
+                    <h5>Cross-Shop Bundles:</h5>
+                    ${bundle.cross_shop_bundles.map(item => `
+                        <div class="bundle-option">
+                            <span class="product">${item.product.replace('_', ' ')}</span>
+                            <span class="discount">${Math.round(item.discount * 100)}% off</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    container.appendChild(bundleItem);
+  });
+}
+
+// Handle bundle creation
+async function handleBundleCreation(event) {
+  event.preventDefault();
+
+  const formData = new FormData(event.target);
+  const comboProducts = formData.get('combo_products').split(',').map(p => p.trim());
+  const location = formData.get('location');
+
+  const bundleData = {
+    primary_product: {
+      name: formData.get('primary_product'),
+      price: parseFloat(formData.get('primary_price')),
+      category: 'clothing' // Default category
+    },
+    combo_products: comboProducts.map(product => ({
+      name: product,
+      price: Math.random() * 1000 + 100, // Random price for demo
+      category: 'accessories' // Default category
+    })),
+
+    location: location
+  };
+
+  try {
+    // First, get seller recommendations
+    const sellerResponse = await fetch('/api/seller-recommendations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        primary_product: bundleData.primary_product,
+        combo_products: bundleData.combo_products,
+        location: location
+      })
+    });
+
+    if (sellerResponse.ok) {
+      const sellerData = await sellerResponse.json();
+      displaySellerRecommendations(sellerData);
+    }
+
+    // Then create the bundle
+    const response = await fetch('/api/create-bundle', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(bundleData)
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      displayBundleResult(result);
+    } else {
+      alert('Error: ' + (result.error || 'Failed to create bundle'));
+    }
+  } catch (error) {
+    console.error('Error creating bundle:', error);
+    alert('Error creating bundle. Please try again.');
+  }
+}
+
+// Display bundle creation result
+function displayBundleResult(bundle) {
+  document.getElementById('bundleResults').style.display = 'block';
+
+  const container = document.getElementById('bundleDetails');
+  container.innerHTML = `
+        <div class="bundle-summary">
+            <div class="primary-product">
+                <h4>Primary Product</h4>
+                <p>${bundle.primary_product.name} - ₹${bundle.primary_product.price.toLocaleString()}</p>
+            </div>
+            <div class="combo-products">
+                <h4>Combo Products</h4>
+                ${bundle.combo_products.map(product => `
+                    <p>${product.name} - ₹${product.price.toLocaleString()}</p>
+                `).join('')}
+            </div>
+            <div class="pricing">
+                <h4>Bundle Pricing</h4>
+                <p><strong>Original Total:</strong> ₹${bundle.pricing.original_total.toLocaleString()}</p>
+                <p><strong>Discounted Total:</strong> ₹${bundle.pricing.discounted_total.toLocaleString()}</p>
+                <p><strong>Savings:</strong> ₹${bundle.pricing.savings.toLocaleString()} (${bundle.pricing.discount_percentage}% off)</p>
+            </div>
+            <div class="bundle-id">
+                <p><strong>Bundle ID:</strong> ${bundle.bundle_id}</p>
+            </div>
+        </div>
+    `;
+
+  // Scroll to bundle results
+  document.getElementById('bundleResults').scrollIntoView({
+    behavior: 'smooth'
+  });
+}
+
+// Display seller recommendations
+function displaySellerRecommendations(data) {
+  const container = document.getElementById('sellerRecommendations');
+  const content = document.getElementById('sellerRecommendationsContent');
+
+  container.style.display = 'block';
+  content.innerHTML = '';
+
+  // Add message
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'seller-message';
+  messageDiv.innerHTML = `
+        <i class="fas fa-lightbulb"></i>
+        <strong>${data.message}</strong>
+        <br>
+        <small>Did you know these local sellers offer trending products? Consider reaching out to bundle together or cross-promote!</small>
+    `;
+  content.appendChild(messageDiv);
+
+  // Add seller cards
+  if (data.collaboration_suggestions && data.collaboration_suggestions.length > 0) {
+    data.collaboration_suggestions.forEach(seller => {
+      const sellerCard = document.createElement('div');
+      sellerCard.className = 'seller-card';
+      sellerCard.innerHTML = `
+                <div class="seller-header">
+                    <div class="seller-name">${seller.seller_name}</div>
+                    <div class="seller-rating">⭐ ${seller.rating}</div>
+                </div>
+                <div class="seller-category">${seller.category}</div>
+                <div class="seller-specialties">
+                    <strong>Specialties:</strong> ${seller.specialties.join(', ')}
+                </div>
+                <div class="seller-contact">
+                    <i class="fas fa-phone"></i>
+                    ${seller.contact}
+                </div>
+                <div class="seller-benefits">
+                    <h5>Collaboration Benefits:</h5>
+                    <ul class="benefits-list">
+                        ${seller.benefits.map(benefit => `<li>${benefit}</li>`).join('')}
+                    </ul>
+                </div>
+                <div class="collaboration-actions">
+                    <a href="tel:${seller.contact}" class="collab-btn primary">
+                        <i class="fas fa-phone"></i> Call Now
+                    </a>
+                    <a href="https://wa.me/${seller.contact.replace(/[^0-9]/g, '')}" class="collab-btn" target="_blank">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </a>
+                    <button class="collab-btn" onclick="sendCollaborationMessage('${seller.seller_name}', '${seller.category}')">
+                        <i class="fas fa-envelope"></i> Send Message
+                    </button>
+                </div>
+            `;
+      content.appendChild(sellerCard);
+    });
+  } else {
+    content.innerHTML += '<p style="text-align: center; opacity: 0.8;">No seller recommendations available for this location.</p>';
+  }
+
+  // Scroll to recommendations
+  container.scrollIntoView({
+    behavior: 'smooth'
+  });
+}
+
+// Send collaboration message (placeholder function)
+function sendCollaborationMessage(sellerName, category) {
+  const message = `Hi! I'm interested in collaborating with ${sellerName} for ${category} products. Let's discuss bundle opportunities!`;
+
+  // For demo purposes, show an alert. In a real app, this would open a messaging interface
+  alert(`Message to ${sellerName}:\n\n${message}\n\n(In a real app, this would open a messaging interface)`);
+}
+
+// Change location and reload data
+function changeLocation() {
+  const location = document.getElementById('locationSelect').value;
+  currentLocation = location || 'mumbai';
+
+  loadRegionalFestivals();
+  loadFestivalCategories();
+}
+
+// Update gauge visualization
+function updateGauge(gaugeId, fillId, textId, percentage) {
+  const gauge = document.getElementById(gaugeId);
+  const fill = document.getElementById(fillId);
+  const text = document.getElementById(textId);
+
+  // Update fill
+  fill.style.transform = `rotate(${percentage * 1.8}deg)`;
+
+  // Update text
+  text.textContent = `${Math.round(percentage)}%`;
+
+  // Update color based on percentage
+  if (percentage >= 70) {
+    gauge.className = 'gauge healthy';
+  } else if (percentage >= 40) {
+    gauge.className = 'gauge at-risk';
+  } else {
+    gauge.className = 'gauge dead';
+  }
+}
+
+// Enhanced calculateDaysUntil function with better error handling
+function calculateDaysUntil(dateString) {
+  if (!dateString || dateString === 'Invalid Date' || dateString === 'NaN') {
+    return 'N/A';
+  }
+
+  const targetDate = new Date(dateString);
+  const today = new Date();
+
+  // Check if date is valid
+  if (isNaN(targetDate.getTime())) {
+    return 'N/A';
+  }
+
+  // Reset time to start of day for accurate calculation
+  today.setHours(0, 0, 0, 0);
+  targetDate.setHours(0, 0, 0, 0);
+
+  const diffTime = targetDate - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  // If festival has passed this year, calculate for next year
+  if (diffDays < 0) {
+    const nextYear = targetDate.getFullYear() + 1;
+    const nextYearDate = new Date(dateString);
+    nextYearDate.setFullYear(nextYear);
+    const nextYearDiff = nextYearDate - today;
+    const nextYearDays = Math.ceil(nextYearDiff / (1000 * 60 * 60 * 24));
+    return nextYearDays >= 0 ? nextYearDays : 'N/A';
+  }
+
+  return diffDays;
+}
+
+// Format date for display
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  });
+}
+
+
+// Load festival categories
+async function loadFestivalCategories() {
+  try {
+    const location = document.getElementById('locationSelect').value;
+    const url = `/api/festival-categories?location=${location}`;
+
+    const response = await fetch(url);
+    const categories = await response.json();
+
+    displayFestivalCategories(categories);
+  } catch (error) {
+    console.error('Error loading festival categories:', error);
+  }
+}
+
+// Display festival categories
+function displayFestivalCategories(categories) {
+  const container = document.getElementById('festivalCategories');
+  container.innerHTML = '';
+
+  if (!categories || categories.length === 0) {
+    container.innerHTML = '<p class="no-data">No categories found.</p>';
+    return;
+  }
+
+  categories.forEach(category => {
+    const categoryCard = document.createElement('div');
+    categoryCard.className = 'category-card';
+    categoryCard.onclick = () => showCategoryFestivals(category);
+
+    const urgentFestivals = category.festivals.filter(f => f.urgency_level === 'urgent' || f.urgency_level === 'critical');
+
+    categoryCard.innerHTML = `
+            <h4>${category.name}</h4>
+            <div class="category-count">${category.count}</div>
+            <div class="category-festivals">
+                ${urgentFestivals.length > 0 ?
+      `<strong>${urgentFestivals.length} urgent</strong><br>` : ''}
+                ${category.festivals.slice(0, 3).map(f => f.name).join(', ')}
+                ${category.festivals.length > 3 ? '...' : ''}
+            </div>
+        `;
+
+    container.appendChild(categoryCard);
+  });
+}
+
+// Show all festivals in a specific category
+async function showCategoryFestivals(category) {
+  try {
+    const location = document.getElementById('locationSelect').value;
+    const url = `/api/all-festivals?location=${location}&sort_by=days_until`;
+
+    const response = await fetch(url);
+    const allFestivals = await response.json();
+
+    // Filter festivals by category (these are already regional due to backend filtering)
+    const categoryFestivals = allFestivals.filter(festival =>
+      festival.category.toLowerCase() === category.name.toLowerCase().replace(' ', '_')
+    );
+
+    // Create a modal or expand the festivals list to show category festivals
+    displayCategoryFestivalsModal(category, categoryFestivals);
+
+  } catch (error) {
+    console.error('Error loading category festivals:', error);
+  }
+}
+
+// Display category festivals in a modal-like view
+function displayCategoryFestivalsModal(category, festivals) {
+  // Create modal container
+  let modal = document.getElementById('categoryFestivalsModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'categoryFestivalsModal';
+    modal.className = 'category-modal';
+    document.body.appendChild(modal);
+
+    // Add click outside to close functionality
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        closeCategoryModal();
+      }
+    });
+
+    // Add keyboard event listener for Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && modal.style.display === 'flex') {
+        closeCategoryModal();
+      }
+    });
+  }
+
+  modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>${category.name} Festivals (${festivals.length})</h3>
+                <button class="close-btn" onclick="closeCategoryModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="category-festivals-grid">
+                    ${festivals.map(festival => `
+                        <div class="festival-card-comprehensive ${festival.is_regional ? 'regional' : ''} ${festival.urgency_level}" onclick="showFestivalInsights('${festival.key}')">
+                            <div class="festival-header-comprehensive">
+                                <div>
+                                    <div class="festival-name-comprehensive">${festival.name}</div>
+                                    <div class="festival-date-comprehensive">${formatDate(festival.date)}</div>
+                                </div>
+                                <div class="festival-days-comprehensive ${getUrgencyClass(festival.days_until)}">
+                                    ${festival.days_until === 'N/A' ? 'TBD' : `${festival.days_until} days`}
+                                </div>
+                            </div>
+                            <div class="festival-description-comprehensive">${festival.description}</div>
+                            <div class="festival-meta-comprehensive">
+                                <span class="festival-category-badge">${festival.category}</span>
+                                <span>${festival.duration} day${festival.duration > 1 ? 's' : ''}</span>
+                            </div>
+                            <div class="festival-trending-keywords">
+                                ${festival.trending_keywords.slice(0, 3).map(keyword =>
+      `<span class="trending-keyword">${keyword}</span>`
+    ).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+
+  modal.style.display = 'flex';
+
+  // Prevent body scroll when modal is open
+  document.body.style.overflow = 'hidden';
+}
+
+// Close category modal
+function closeCategoryModal() {
+  const modal = document.getElementById('categoryFestivalsModal');
+  if (modal) {
+    modal.style.display = 'none';
+    // Restore body scroll
+    document.body.style.overflow = 'auto';
+  }
+}
+
+// Get urgency class for days until
+function getUrgencyClass(daysUntil) {
+  if (daysUntil === 'N/A' || daysUntil === null || daysUntil === undefined) return '';
+  if (daysUntil <= 7) return 'critical';
+  if (daysUntil <= 30) return 'urgent';
+  return '';
+}
+
+// Show festival insights
+async function showFestivalInsights(festivalKey) {
+  try {
+    const location = document.getElementById('locationSelect').value;
+    const url = `/api/festival/${festivalKey}/insights?location=${location}`;
+
+    const response = await fetch(url);
+    const insights = await response.json();
+
+    displayFestivalInsights(insights);
+
+    // Show insights panel
+    document.getElementById('festivalInsightsPanel').style.display = 'block';
+    document.getElementById('festivalInsightsPanel').scrollIntoView({
+      behavior: 'smooth'
+    });
+
+  } catch (error) {
+    console.error('Error loading festival insights:', error);
+  }
+}
+
+// Display festival insights
+function displayFestivalInsights(insights) {
+  const container = document.getElementById('festivalInsights');
+
+  container.innerHTML = `
+        <div class="insights-content">
+            <div class="insight-section">
+                <h4>Festival Information</h4>
+                <ul class="insight-list">
+                    <li><strong>Name:</strong> ${insights.festival_info.name}</li>
+                    <li><strong>Category:</strong> ${insights.festival_info.category}</li>
+                    <li><strong>Duration:</strong> ${insights.festival_info.duration} days</li>
+                    <li><strong>Shopping Period:</strong> ${insights.festival_info.shopping_period} days</li>
+                    <li><strong>Days Until:</strong> ${insights.days_until || 'TBD'}</li>
+                    <li><strong>Urgency Level:</strong> ${insights.urgency_level}</li>
+                </ul>
+            </div>
+
+            <div class="insight-section">
+                <h4>Marketing Opportunities</h4>
+                <ul class="insight-list">
+                    ${insights.marketing_opportunities.map(opportunity =>
+      `<li>${opportunity}</li>`
+    ).join('')}
+                </ul>
+            </div>
+
+            <div class="insight-section">
+                <h4>Inventory Recommendations</h4>
+                <ul class="insight-list">
+                    ${insights.inventory_recommendations.map(recommendation =>
+      `<li>${recommendation}</li>`
+    ).join('')}
+                </ul>
+            </div>
+
+            <div class="insight-section">
+                <h4>Trending Data</h4>
+                <div class="trending-data-item">
+                    <h4>Trending Products</h4>
+                    <div class="trending-products-list">
+                        ${insights.trending_data.trending_products.map(product =>
+      `<span class="trending-product">${product}</span>`
+    ).join('')}
+                    </div>
+                </div>
+                <div class="trending-data-item">
+                    <h4>Promotion Suggestions</h4>
+                    <ul class="insight-list">
+                        ${insights.trending_data.promotion_suggestions.map(suggestion =>
+      `<li>${suggestion}</li>`
+    ).join('')}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Filter festivals by category
+function filterFestivals() {
+  const filterValue = document.getElementById('festivalFilter').value;
+  // Main dashboard cards
+  const festivalCards = document.querySelectorAll('.festival-card');
+  festivalCards.forEach(card => {
+    const category = card.getAttribute('data-category') || '';
+    if (filterValue === 'all' || category.includes(filterValue)) {
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+  // Modal cards (if modal is open)
+  const modalCards = document.querySelectorAll('.festival-card-comprehensive');
+  modalCards.forEach(card => {
+    const categoryBadge = card.querySelector('.festival-category-badge');
+    const category = categoryBadge ? categoryBadge.textContent.toLowerCase() : '';
+    if (filterValue === 'all' || category.includes(filterValue)) {
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+
+// Filter by specific category
+function filterByCategory(category) {
+  document.getElementById('festivalFilter').value = category;
+  filterFestivals();
+}
+
+// ===== SHOPKEEPER DASHBOARD FUNCTIONS =====
+
+// Load shopkeeper statistics
+async function loadShopkeeperStats() {
+  try {
+    const userData = localStorage.getItem('shopkeeper_user');
+    console.log('Loading shopkeeper stats, userData:', userData);
+
+    if (!userData) {
+      console.log('No user data found for shopkeeper stats');
+      return;
+    }
+
+    const user = JSON.parse(userData);
+    console.log('Loading stats for user:', user.user_id);
+
+    if (!user.user_id) {
+      console.error('Invalid user ID in user data:', user);
+      return;
+    }
+
+    const response = await fetch(`/api/shopkeeper-stats/${user.user_id}`);
+    const stats = await response.json();
+
+    const totalProductsEl = document.getElementById('shopkeeperTotalProducts');
+    const totalSalesValueEl = document.getElementById('shopkeeperTotalSalesValue');
+    const totalItemsSoldEl = document.getElementById('shopkeeperTotalItemsSold');
+    const currentInventoryEl = document.getElementById('shopkeeperCurrentInventory');
+
+    if (totalProductsEl) totalProductsEl.textContent = stats.total_products || 0;
+    if (totalSalesValueEl) totalSalesValueEl.textContent = `₹${(stats.total_sales_value || 0).toLocaleString()}`;
+    if (totalItemsSoldEl) totalItemsSoldEl.textContent = stats.total_items_sold || 0;
+    if (currentInventoryEl) currentInventoryEl.textContent = stats.current_inventory || 0;
+
+  } catch (error) {
+    console.error('Error loading shopkeeper stats:', error);
+  }
+}
+
+// Load shopkeeper products
+async function loadProducts() {
+  try {
+    const userData = localStorage.getItem('shopkeeper_user');
+    console.log('Loading products, userData:', userData);
+
+    if (!userData) {
+      console.log('No user data found for products');
+      return;
+    }
+
+    const user = JSON.parse(userData);
+    console.log('Loading products for user:', user.user_id);
+
+    if (!user.user_id) {
+      console.error('Invalid user ID in user data:', user);
+      return;
+    }
+
+    const response = await fetch(`/api/shopkeeper-products/${user.user_id}`);
+    const products = await response.json();
+
+    displayProducts(products);
+
+  } catch (error) {
+    console.error('Error loading products:', error);
+  }
+}
+
+// Display products
+function displayProducts(products) {
+  const container = document.getElementById('productsList');
+
+  if (!products || products.length === 0) {
+    container.innerHTML = '<div class="no-data">No products found. Add your first product to get started!</div>';
+    return;
+  }
+
+  container.innerHTML = `
+        <div class="products-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Product Name</th>
+                        <th>Category</th>
+                        <th>Current Quantity</th>
+                        <th>Date Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${products.map(product => `
+                        <tr>
+                            <td>${product.sku}</td>
+                            <td>${product.product_name}</td>
+                            <td>${product.category}</td>
+                            <td>${product.current_quantity}</td>
+                            <td>${product.date_added ? new Date(product.date_added).toLocaleDateString() : 'N/A'}</td>
+                            <td>
+                                <button onclick="recordEventForProduct('${product.sku}')" class="btn-small">
+                                    <i class="fas fa-edit"></i> Record Event
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+// Record event for specific product
+function recordEventForProduct(sku) {
+  document.getElementById('eventSku').value = sku;
+  showShopkeeperTab('record-event');
+}
+
+// Load shopkeeper history
+async function loadHistory() {
+  try {
+    const userData = localStorage.getItem('shopkeeper_user');
+    console.log('Loading history, userData:', userData);
+
+    if (!userData) {
+      console.log('No user data found for history');
+      return;
+    }
+
+    const user = JSON.parse(userData);
+    console.log('Loading history for user:', user.user_id);
+
+    if (!user.user_id) {
+      console.error('Invalid user ID in user data:', user);
+      return;
+    }
+
+    // Get filter values
+    const skuFilter = document.getElementById('filterSku')?.value || '';
+    const startDate = document.getElementById('startDate')?.value || '';
+    const endDate = document.getElementById('endDate')?.value || '';
+
+    let url = `/api/product-history/${user.user_id}`;
+    const params = new URLSearchParams();
+
+    if (skuFilter) params.append('sku', skuFilter);
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    if (params.toString()) {
+      url += '?' + params.toString();
+    }
+
+    const response = await fetch(url);
+    const history = await response.json();
+
+    displayHistory(history);
+
+  } catch (error) {
+    console.error('Error loading history:', error);
+  }
+}
+
+// Display history
+function displayHistory(history) {
+  const container = document.getElementById('historyList');
+
+  if (!history || history.length === 0) {
+    container.innerHTML = '<div class="no-data">No history found for the selected filters.</div>';
+    return;
+  }
+
+  container.innerHTML = `
+        <div class="history-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>SKU</th>
+                        <th>Event Type</th>
+                        <th>Quantity Changed</th>
+                        <th>Price per Unit</th>
+                        <th>Total Value</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${history.map(event => `
+                        <tr>
+                            <td>${new Date(event.event_date).toLocaleDateString()}</td>
+                            <td>${event.sku}</td>
+                            <td><span class="event-type ${event.event_type}">${event.event_type}</span></td>
+                            <td>${event.quantity_changed > 0 ? '+' : ''}${event.quantity_changed}</td>
+                            <td>₹${event.price_per_unit || 0}</td>
+                            <td>₹${Math.abs(event.quantity_changed * (event.price_per_unit || 0)).toLocaleString()}</td>
+                            <td>${event.notes || '-'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+// Export history to CSV
+async function exportHistory() {
+  try {
+    const userData = localStorage.getItem('shopkeeper_user');
+    if (!userData) return;
+
+    const user = JSON.parse(userData);
+
+    if (!user.user_id) {
+      console.error('Invalid user ID in user data:', user);
+      return;
+    }
+
+    // Get filter values
+    const skuFilter = document.getElementById('filterSku')?.value || '';
+    const startDate = document.getElementById('startDate')?.value || '';
+    const endDate = document.getElementById('endDate')?.value || '';
+
+    let url = `/api/export-history/${user.user_id}`;
+    const params = new URLSearchParams();
+
+    if (skuFilter) params.append('sku', skuFilter);
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    if (params.toString()) {
+      url += '?' + params.toString();
+    }
+
+    const response = await fetch(url);
+    const blob = await response.blob();
+
+    // Create download link
+    const url2 = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url2;
+    a.download = `product_history_${user.user_id}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url2);
+
+  } catch (error) {
+    console.error('Error exporting history:', error);
+  }
+}
+
+// Handle add product form submission
+async function handleAddProduct(event) {
+  event.preventDefault();
+
+  const userData = localStorage.getItem('shopkeeper_user');
+  if (!userData) {
+    alert('Please login first');
+    return;
+  }
+
+  const user = JSON.parse(userData);
+  if (!user.user_id) {
+    alert('Invalid user data');
+    return;
+  }
+
+  const formData = new FormData(event.target);
+  const productData = {
+    user_id: user.user_id,
+    sku: formData.get('sku'),
+    product_name: formData.get('product_name'),
+    category: formData.get('category'),
+    initial_quantity: parseInt(formData.get('initial_quantity'))
+  };
+
+  try {
+    const response = await fetch('/api/add-product', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(productData)
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      alert('Product added successfully!');
+      event.target.reset();
+      loadProducts();
+      loadShopkeeperStats();
+    } else {
+      alert(result.error || 'Failed to add product');
+    }
+  } catch (error) {
+    console.error('Error adding product:', error);
+    alert('Error adding product. Please try again.');
+  }
+}
+
+// Handle record event form submission
+async function handleRecordEvent(event) {
+  event.preventDefault();
+
+  const userData = localStorage.getItem('shopkeeper_user');
+  if (!userData) {
+    alert('Please login first');
+    return;
+  }
+
+  const user = JSON.parse(userData);
+  if (!user.user_id) {
+    alert('Invalid user data');
+    return;
+  }
+
+  const formData = new FormData(event.target);
+  const eventData = {
+    user_id: user.user_id,
+    sku: formData.get('sku'),
+    event_type: formData.get('event_type'),
+    quantity_changed: parseInt(formData.get('quantity_changed')),
+    price_per_unit: formData.get('price_per_unit') ? parseFloat(formData.get('price_per_unit')) : null,
+    notes: formData.get('notes')
+  };
+
+  try {
+    const response = await fetch('/api/record-sale-event', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(eventData)
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      alert(`${eventData.event_type} recorded successfully! New quantity: ${result.new_quantity}`);
+      event.target.reset();
+      loadProducts();
+      loadHistory();
+      loadShopkeeperStats();
+    } else {
+      alert(result.error || 'Failed to record event');
+    }
+  } catch (error) {
+    console.error('Error recording event:', error);
+    alert('Error recording event. Please try again.');
+  }
+}
+
+// Add event listeners for shopkeeper forms
+document.addEventListener('DOMContentLoaded', function() {
+  // Add Product Form
+  const addProductForm = document.getElementById('addProductForm');
+  if (addProductForm) {
+    addProductForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const productData = {
+        sku: formData.get('sku'),
+        product_name: formData.get('product_name'),
+        category: formData.get('category'),
+        initial_quantity: parseInt(formData.get('initial_quantity'))
+      };
+
+      try {
+        const userData = localStorage.getItem('shopkeeper_user');
+        if (!userData) {
+          alert('Please log in to add products.');
+          return;
+        }
+
+        const user = JSON.parse(userData);
+        const response = await fetch(`/api/add-product/${user.user_id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(productData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          alert('Product added successfully!');
+          e.target.reset();
+          loadProducts();
+          loadShopkeeperStats();
+        } else {
+          alert('Error: ' + (result.error || 'Failed to add product'));
+        }
+      } catch (error) {
+        console.error('Error adding product:', error);
+        alert('Error adding product. Please try again.');
+      }
+    });
+  }
+
+  // Record Event Form
+  const recordEventForm = document.getElementById('recordEventForm');
+  if (recordEventForm) {
+    recordEventForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const eventData = {
+        sku: formData.get('sku'),
+        event_type: formData.get('event_type'),
+        quantity_changed: parseInt(formData.get('quantity_changed')),
+        price_per_unit: parseFloat(formData.get('price_per_unit')) || 0,
+        notes: formData.get('notes')
+      };
+
+      try {
+        const userData = localStorage.getItem('shopkeeper_user');
+        if (!userData) {
+          alert('Please log in to record events.');
+          return;
+        }
+
+        const user = JSON.parse(userData);
+        const response = await fetch(`/api/record-event/${user.user_id}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(eventData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          alert('Event recorded successfully!');
+          e.target.reset();
+          loadProducts();
+          loadShopkeeperStats();
+          loadHistory();
+        } else {
+          alert('Error: ' + (result.error || 'Failed to record event'));
+        }
+      } catch (error) {
+        console.error('Error recording event:', error);
+        alert('Error recording event. Please try again.');
+      }
+    });
+  }
+});
