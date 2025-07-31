@@ -32,7 +32,7 @@ class SmartDiscountCalculator:
                                  'name', 'category', 'price', 'stock_quantity',
                                  'days_in_stock', 'sales_velocity'.
             health_score (float): A score (0.0 to 1.0) indicating product health.
-                                  Lower score means poorer health (e.g., dead stock).
+                                 Lower score means poorer health (e.g., dead stock).
             festival_result (dict): Dictionary containing festival recommendations,
                                     e.g., {'recommended_festivals': [{'name': 'Diwali'}]}.
 
