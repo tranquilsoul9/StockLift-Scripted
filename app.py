@@ -39,6 +39,7 @@ from models.discount_calculator import SmartDiscountCalculator
 from models.location_service import LocationService
 from models.bundle_calculator import BundleCalculator
 from models.product_tracker import ProductTracker
+from models.birefnet_bg_removal import run_birefnet
 
 load_dotenv()
 
@@ -749,8 +750,8 @@ def background_removal_real():
     file.save(input_path)
     # Open image
     img = Image.open(input_path).convert('RGBA')
-    # Run U2Net to get mask
-    mask = run_u2net(img)
+    # Run BiRefNet to get mask
+    mask = run_birefnet(img)
     # Ensure mask is single channel, same size as img
     mask = mask.resize(img.size, Image.BILINEAR).convert('L')
     # Apply mask as alpha channel
