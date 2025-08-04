@@ -8,28 +8,34 @@ import google.generativeai as genai # Ensure this is already imported
 import json # Ensure this is already imported
 import re # Ensure this is already imported
 import os
-os.environ['HTTP_PROXY'] = 'http://172.31.2.4:8080'
-os.environ['HTTPS_PROXY'] = 'http://172.31.2.4:8080'
+# Temporarily disable proxy for Google AI API
+# os.environ['HTTP_PROXY'] = 'http://172.31.2.4:8080'
+# os.environ['HTTPS_PROXY'] = 'http://172.31.2.4:8080'
 from dotenv import load_dotenv
 
-# In app.py, after genai.configure(api_key=...)
-try:
-    print("\n--- Listing available Gemini models ---")
-    for m in genai.list_models():
-        if "generateContent" in m.supported_generation_methods:
-            print(f"Model: {m.name}, Supported Methods: {m.supported_generation_methods}")
-    print("--- End model list ---\n")
-except Exception as e:
-    print(f"Error listing models: {e}")
-    
 load_dotenv() # Load environment variables from .env file
 
 api_key_status = "Found" if os.environ.get('GOOGLE_API_KEY') else "Not Found"
+api_key_value = os.environ.get('GOOGLE_API_KEY', 'NOT_SET')
 print(f"DEBUG: GOOGLE_API_KEY status: {api_key_status}")
+print(f"DEBUG: API Key length: {len(api_key_value) if api_key_value != 'NOT_SET' else 0}")
+print(f"DEBUG: API Key starts with: {api_key_value[:10] if api_key_value != 'NOT_SET' else 'N/A'}...")
 import google.generativeai as genai
 # Configure Google Generative AI if API key is available
 if os.environ.get('GOOGLE_API_KEY'):
     genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+    print("DEBUG: genai.configure() called successfully")
+    
+    # Now test the API key by listing available models
+    try:
+        print("\n--- Listing available Gemini models ---")
+        for m in genai.list_models():
+            if "generateContent" in m.supported_generation_methods:
+                print(f"Model: {m.name}, Supported Methods: {m.supported_generation_methods}")
+        print("--- End model list ---\n")
+        print("✅ Google AI API key is working correctly!")
+    except Exception as e:
+        print(f"❌ Error testing API key: {e}")
 else:
     print("Warning: GOOGLE_API_KEY not found. Some AI features may not work.")
 # Import our custom modules
@@ -949,35 +955,95 @@ def creative_content():
     if not file:
         return jsonify({'error': 'No image uploaded'}), 400
 
-    image = Image.open(file.stream).convert('RGB')
-    model = genai.GenerativeModel("gemini-1.5-flash")
-    prompt = (
-        "Given this product image, respond ONLY with a valid JSON object with the following fields: "
-        "title, description, bullets (a list of 3 bullet points), tags (a list), and caption. "
-        "Do not include any explanation, markdown, or text outside the JSON. Example:\n"
-        "{\n"
-        '  \"title\": \"Minimalist White Sneaker for Everyday Comfort\",\n'
-        '  \"description\": \"A clean, classic white sneaker...\",\n'
-        '  \"bullets\": [\"Lightweight and breathable\", \"All-day comfort\", \"Sleek design\"],\n'
-        '  \"tags\": [\"#WhiteSneakers\", \"#ComfortWear\"],\n'
-        '  \"caption\": \"Step into style and comfort! #SneakerLove\"\n'
-        "}\n"
-    )
-    response = model.generate_content([prompt, image])
-    text = response.text.strip()
     try:
-        # Remove markdown code block if present
-        text_clean = re.sub(r"^```json|^```|```$", "", text, flags=re.MULTILINE).strip()
-        # Extract the first JSON object from the cleaned text
-        match = re.search(r'\{.*\}', text_clean, re.DOTALL)
-        if match:
-            json_str = match.group(0)
-            data = json.loads(json_str)
-            return jsonify(data)
-        else:
-            raise ValueError("No JSON object found in response.")
-    except Exception as e:
-        return jsonify({'error': 'Could not parse Gemini response', 'raw': text, 'exception': str(e)})
+        image = Image.open(file.stream).convert('RGB')
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        prompt = (
+            "Given this product image, respond ONLY with a valid JSON object with the following fields: "
+            "title, description, bullets (a list of 3 bullet points), tags (a list), and caption. "
+            "Do not include any explanation, markdown, or text outside the JSON. Example:\n"
+            "{\n"
+            '  \"title\": \"Minimalist White Sneaker for Everyday Comfort\",\n'
+            '  \"description\": \"A clean, classic white sneaker...\",\n'
+            '  \"bullets\": [\"Lightweight and breathable\", \"All-day comfort\", \"Sleek design\"],\n'
+            '  \"tags\": [\"#WhiteSneakers\", \"#ComfortWear\"],\n'
+            '  \"caption\": \"Step into style and comfort! #SneakerLove\"\n'
+            "}\n"
+        )
+        
+        # Add timeout and error handling for Google AI API call
+        try:
+            response = model.generate_content([prompt, image])
+            text = response.text.strip()
+        except Exception as ai_error:
+            # Handle Google AI service errors (timeouts, service unavailable, etc.)
+            error_type = type(ai_error).__name__
+            print(f"Google AI Error ({error_type}): {str(ai_error)}")
+            
+            # Return fallback response when AI service fails
+            return jsonify({
+                'title': 'Product Image Analysis',
+                'description': 'AI service temporarily unavailable. Please try again in a few minutes.',
+                'bullets': [
+                    'High-quality product image uploaded',
+                    'AI analysis will be available shortly',
+                    'Manual review recommended'
+                ],
+                'tags': ['#ProductAnalysis', '#AIUnavailable'],
+                'caption': 'Product analysis in progress - AI service temporarily unavailable',
+                'ai_error': True,
+                'error_details': f'{error_type}: Service temporarily unavailable'
+            }), 503
+        
+        # Parse the AI response
+        try:
+            # Remove markdown code block if present
+            text_clean = re.sub(r"^```json|^```|```$", "", text, flags=re.MULTILINE).strip()
+            # Extract the first JSON object from the cleaned text
+            match = re.search(r'\{.*\}', text_clean, re.DOTALL)
+            if match:
+                json_str = match.group(0)
+                data = json.loads(json_str)
+                return jsonify(data)
+            else:
+                raise ValueError("No JSON object found in response.")
+        except Exception as parse_error:
+            print(f"JSON Parse Error: {str(parse_error)}")
+            print(f"Raw AI Response: {text}")
+            return jsonify({
+                'error': 'Could not parse AI response', 
+                'raw': text, 
+                'exception': str(parse_error),
+                'fallback_data': {
+                    'title': 'Product Analysis Error',
+                    'description': 'Unable to process AI response. Please try uploading the image again.',
+                    'bullets': [
+                        'AI response format error',
+                        'Please try again with a different image',
+                        'Contact support if issue persists'
+                    ],
+                    'tags': ['#ParseError', '#Retry'],
+                    'caption': 'Product analysis failed - please try again'
+                }
+            }), 500
+            
+    except Exception as general_error:
+        print(f"General Error in creative_content: {str(general_error)}")
+        return jsonify({
+            'error': 'Internal server error',
+            'message': str(general_error),
+            'fallback_data': {
+                'title': 'System Error',
+                'description': 'Unable to process image. Please try again.',
+                'bullets': [
+                    'Check image format (JPG, PNG supported)',
+                    'Ensure stable internet connection',
+                    'Try again in a few minutes'
+                ],
+                'tags': ['#SystemError', '#Retry'],
+                'caption': 'System temporarily unavailable'
+            }
+        }), 500
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
