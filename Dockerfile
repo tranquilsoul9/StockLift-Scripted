@@ -1,16 +1,17 @@
-# Use Python 3.10.9 base image
-FROM python:3.10.9
+# Base image
+FROM python:3.10
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements.txt and install dependencies
-COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
-
-# Copy the rest of your code
+# Copy project files
 COPY . .
 
-# Run your app (change this if needed)
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Expose the correct port
+EXPOSE 5000
+
+# Start the app
 CMD ["python", "app.py"]
