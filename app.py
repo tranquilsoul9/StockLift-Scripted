@@ -1125,11 +1125,15 @@ def generate_campaign_content():
 def logout():
     session.pop('shopkeeper_logged_in', None)
     return redirect(url_for('index'))
-from flask import Flask
-import os
-
-app = Flask(__name__)
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    
+    if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000)):
     app.run(host="0.0.0.0", port=port)
+#from flask import Flask
+#import os
+
+#app = Flask(__name__)
+
+#if __name__ == "__main__":
+ #   port = int(os.environ.get("PORT", 5000))
+  #  app.run(host="0.0.0.0", port=port)
