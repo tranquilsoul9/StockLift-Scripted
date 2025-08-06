@@ -1115,6 +1115,16 @@ def generate_campaign_content():
 def logout():
     session.pop('shopkeeper_logged_in', None)
     return redirect(url_for('index'))
+
+# For Render deployment: Gunicorn will import this module and use the 'app' object
+# The if __name__ == "__main__" block is only for local development
 if __name__ == "__main__":
+    # Local development server
     port = int(os.environ.get("PORT", 8050))
-    app.run(host="0.0.0.0", port=port)
+    debug_mode = os.environ.get("FLASK_ENV") == "development"
+    print(f"Starting Flask development server on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+else:
+    # Production deployment (Gunicorn)
+    print(f"Flask app initialized for production deployment")
+    print(f"Environment: {'Render' if os.environ.get('RENDER') else 'Local'}")
