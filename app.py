@@ -1,44 +1,22 @@
+# --- IMPORTS (ALL AT THE TOP) ---
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
-import google.generativeai as genai # Ensure this is already imported
-import json # Ensure this is already imported
-import re # Ensure this is already imported
-import os
+import google.generativeai as genai
+import json
+import re
+from werkzeug.utils import secure_filename
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps
+import io
+import cv2
 # Temporarily disable proxy for Google AI API
 # os.environ['HTTP_PROXY'] = 'http://172.31.2.4:8080'
 # os.environ['HTTPS_PROXY'] = 'http://172.31.2.4:8080'
-from dotenv import load_dotenv
 
-load_dotenv() # Load environment variables from .env file
-
-api_key_status = "Found" if os.environ.get('GOOGLE_API_KEY') else "Not Found"
-api_key_value = os.environ.get('GOOGLE_API_KEY', 'NOT_SET')
-print(f"DEBUG: GOOGLE_API_KEY status: {api_key_status}")
-print(f"DEBUG: API Key length: {len(api_key_value) if api_key_value != 'NOT_SET' else 0}")
-print(f"DEBUG: API Key starts with: {api_key_value[:10] if api_key_value != 'NOT_SET' else 'N/A'}...")
-import google.generativeai as genai
-# Configure Google Generative AI if API key is available
-if os.environ.get('GOOGLE_API_KEY'):
-    genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
-    print("DEBUG: genai.configure() called successfully")
-    
-    # Now test the API key by listing available models
-    try:
-        print("\n--- Listing available Gemini models ---")
-        for m in genai.list_models():
-            if "generateContent" in m.supported_generation_methods:
-                print(f"Model: {m.name}, Supported Methods: {m.supported_generation_methods}")
-        print("--- End model list ---\n")
-        print("✅ Google AI API key is working correctly!")
-    except Exception as e:
-        print(f"❌ Error testing API key: {e}")
-else:
-    print("Warning: GOOGLE_API_KEY not found. Some AI features may not work.")
-# Import our custom modules
+# --- YOUR CUSTOM MODULES ---
 from models.product_health import ProductHealthAnalyzer
 from models.festival_engine import FestivalPromotionEngine
 from models.discount_calculator import SmartDiscountCalculator
@@ -47,24 +25,35 @@ from models.bundle_calculator import BundleCalculator
 from models.product_tracker import ProductTracker
 from models.birefnet_bg_removal import run_birefnet
 
+load_dotenv() # Load environment variables from .env file
+
+# --- SETUP AND CONFIGURATION (ONCE AT THE TOP) ---
 load_dotenv()
 
+# 1. INITIALIZE THE FLASK APP (ONLY ONCE!)
 app = Flask(__name__, static_folder='static', template_folder='templates')
-app.secret_key = 'your-very-secret-key' 
-# Configure app for Vercel deployment
-app.config['UPLOAD_FOLDER'] = '/tmp/uploads' if os.environ.get('VERCEL') else 'uploads'
-app.config['PROCESSED_FOLDER'] = '/tmp/processed' if os.environ.get('VERCEL') else 'processed'
+app.secret_key = os.environ.get('SECRET_KEY', 'your-very-secret-key')
 
-
-
-# Verify Google API key is available
-if not os.environ.get('GOOGLE_API_KEY'):
-    print("Warning: GOOGLE_API_KEY not found in environment variables")
-    print("Set it using: export GOOGLE_API_KEY=your-api-key")
+# 2. CONFIGURE THE APP FOR RENDER DEPLOYMENT
+# This uses Render's temporary filesystem for uploads.
+app.config['UPLOAD_FOLDER'] = '/tmp/uploads' if os.environ.get('RENDER') else 'uploads'
+app.config['PROCESSED_FOLDER'] = '/tmp/processed' if os.environ.get('RENDER') else 'processed'
 
 # Create directories if they don't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
+
+# 3. CONFIGURE GOOGLE AI
+api_key_status = "Found" if os.environ.get('GOOGLE_API_KEY') else "Not Found"
+print(f"DEBUG: GOOGLE_API_KEY status: {api_key_status}")
+if os.environ.get('GOOGLE_API_KEY'):
+    try:
+        genai.configure(api_key=os.environ["GOOGLE_API_KEY"])
+        print("✅ Google AI API key configured successfully.")
+    except Exception as e:
+        print(f"❌ Error configuring Google AI: {e}")
+else:
+    print("⚠️ Warning: GOOGLE_API_KEY not found. Some AI features may not work.")
 
 # Initialize models
 health_analyzer = ProductHealthAnalyzer()
@@ -132,6 +121,7 @@ try:
     
 except Exception as e:
     print(f"Demo shopkeeper already exists or error: {e}")
+
 
 @app.route('/')
 def index():
